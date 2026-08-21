@@ -1,5 +1,0 @@
-:root {
-    --scale: 1;
-    --base-screen-height: 1440;
-    --px-to-vh: calc(1vh / var(--base-screen-height) * 100 * var(--scale));
-}

@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible defect in the template, tooling, documentation, or example resource.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove secrets, private provider documentation, and player-sensitive data before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: Template version or commit
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version, FXServer artifact, and selected framework/providers when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation and logs
+      description: Include the smallest relevant output and state which checks were run.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: I removed credentials and sensitive data.
+          required: true
+        - label: I can reproduce this on the latest default branch.
+          required: true
