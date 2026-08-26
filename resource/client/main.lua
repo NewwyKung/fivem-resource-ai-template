@@ -109,8 +109,6 @@ AddEventHandler('esx:playerLoaded', function(xPlayer, isNew, skin)
     SendNUIMessage({
         eventName = 'closeLoadingScreen'
     })
-    print('[overlord_loadingscreen] closeLoadingScreen message sent to NUI')
-    print('[overlord_loadingscreen] isNew: ' .. tostring(isNew))
     if not isNew then
         -- EXISTING PLAYER
         Citizen.CreateThread(function()
