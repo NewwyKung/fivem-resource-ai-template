@@ -4,13 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vite --configLoader runner",
+    "build": "vite build --configLoader runner",
+    "check": "svelte-check --config ./svelte.config.js --tsconfig ./jsconfig.json",
+    "preview": "vite preview --configLoader runner"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "5.1.0",
     "svelte": "5.34.7",
+    "svelte-check": "4.7.4",
+    "typescript": "6.0.3",
     "vite": "6.2.1"
   }
 }
