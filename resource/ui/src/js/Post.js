@@ -5,6 +5,16 @@ export const scriptName = window.GetParentResourceName ? window.GetParentResourc
 // endpoint is unavailable; browser debug scenarios should simulate the response flow.
 export const isBrowser = typeof window.invokeNative !== 'function';
 
+/**
+ * @typedef {object} PostOptions
+ * @property {AbortSignal} [signal]
+ */
+
+/**
+ * @param {string} [action]
+ * @param {Record<string, unknown>} [data]
+ * @param {PostOptions} [options]
+ */
 export const Post = async (action = '', data = {}, options = {}) => fetch(`https://${scriptName}/${action}`, {
     method: 'POST',
     headers: {
