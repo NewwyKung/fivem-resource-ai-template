@@ -15,6 +15,12 @@ All notable public changes to this project are documented here. The project foll
 
 - UI specifications now track asset approval, decomposition, dynamic safe zones, and provenance.
 - Design pipeline and agent guidance now route artwork-heavy screens through asset approval before implementation.
+- GitHub Actions now use the Node 24-based `checkout` and `setup-node` v5 actions.
+
+### Fixed
+
+- Restored the canonical `resource/ui` Svelte scaffold, lockfile, hardened NUI bridge, production `ui_page`, and generated-output boundary so CI can install and validate the template.
+- Removed stale duplicate development resources that conflicted with repository validation and dependency caching.
 
 ### Planned
 

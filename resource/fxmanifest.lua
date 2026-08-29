@@ -1,13 +1,13 @@
 fx_version 'cerulean'
-game "gta5"
-author "Newwy"
-version '1.0.0'
-description ''
-lua54 'yes'
+game 'gta5'
 
-loadscreen 'html/index.html'
-loadscreen_manual_shutdown 'yes'
--- ui_page 'http://localhost:3301/'
+author 'Newwy'
+version '0.1.0'
+description 'AI-assisted FiveM resource template'
+
+shared_scripts {
+    'config/config.main.lua',
+}
 
 client_scripts {
     'client/main.lua',
@@ -17,11 +17,9 @@ server_scripts {
     'server/main.lua',
 }
 
-shared_scripts {
-    'config/config.general.lua',
-}
+-- Build resource/ui before starting the resource in production.
+ui_page 'html/index.html'
 
 files {
-    'html/**',
-    'html/img/assets/*.*',
+    'html/**/*',
 }
