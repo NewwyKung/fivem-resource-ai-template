@@ -10,6 +10,7 @@ const checks = [
   ['Node syntax: secret scanner', process.execPath, ['--check', 'scripts/scan-secrets.mjs']],
   ['Node syntax: LuaLS runner', process.execPath, ['--check', 'scripts/run-luals.mjs']],
   ['Node syntax: agent adapter validator', process.execPath, ['--check', 'scripts/validate-agent-adapters.mjs']],
+  ['Node syntax: UI asset validator', process.execPath, ['--check', 'scripts/check-ui-assets.mjs']],
   ['Template policy', process.execPath, ['scripts/validate-template.mjs']],
   ['Integration profiles', process.execPath, ['scripts/validate-integrations.mjs']],
   ['AI registry', process.execPath, ['scripts/build-ai-index.mjs', '--check']],
@@ -23,6 +24,8 @@ const checks = [
   ['Optional i18n contract', process.execPath, ['examples/capabilities/i18n/tests/locale.integration.mjs']],
   ['UI practice policy', process.execPath, ['scripts/check-ui-practices.mjs']],
   ['UI practice policy integration', process.execPath, ['tests/ui/check-ui-practices.integration.mjs']],
+  ['UI asset policy', process.execPath, ['scripts/check-ui-assets.mjs']],
+  ['UI asset policy integration', process.execPath, ['tests/ui/check-ui-assets.integration.mjs']],
   ['NUI bridge integration', process.execPath, ['tests/ui/nui-bridge.integration.mjs']],
   ['Svelte diagnostics', npm, ['run', 'check', '--prefix', 'resource/ui']],
 ];

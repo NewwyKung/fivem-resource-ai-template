@@ -21,7 +21,7 @@ It is not a drop-in gameplay resource, a replacement for testing on FXServer, or
 - Clear `client`, `server`, `shared`, `config`, UI, and provider boundaries.
 - Requirements discovery before substantial implementation.
 - Server-authoritative gameplay and security rules.
-- Wireframe-first UI workflow with Svelte 5 and Vite.
+- Wireframe-first, asset-aware UI workflow with Svelte 5 and Vite.
 - Reusable provider profiles without speculative runtime bridges.
 - Small, task-specific AI context instead of loading the entire repository.
 - Secret scanning, schema validation, integration tests, LuaLS support, and release packaging.
@@ -172,9 +172,16 @@ Requirements
 → Wireframe approval
 → Visual design
 → Visual approval
+→ Asset decomposition and approval when custom artwork is required
 → Svelte implementation
 → UI review
 → FiveM validation
+```
+
+Complex HUD shells, masks, textures, and state overlays can be created as separate image parts before implementation. Approved references and masters stay under `docs/ui-spec/assets/<screen>/`; optimized runtime files stay under `resource/ui/public/assets/<screen>/` and are declared in `asset-manifest.json`.
+
+```bash
+npm run check:ui-assets
 ```
 
 UI source lives in `resource/ui/` and builds to `resource/html/`.

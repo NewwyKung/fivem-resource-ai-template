@@ -15,6 +15,7 @@ Use `.ai/work/current-task.md` for multi-step or cross-model work. The packet sh
 | Register or activate a framework, database, library, or custom provider | `add-integration/SKILL.md` |
 | Define an approved screen layout | `wireframe-ui/SKILL.md` |
 | Convert an approved wireframe into visual design | `design-ui/SKILL.md` |
+| Decompose an approved visual design into runtime-ready image parts | `assetize-ui/SKILL.md` |
 | Implement an approved UI specification | `implement-ui/SKILL.md` |
 | Change NUI transport/integration without redesign | `create-nui/SKILL.md` |
 | Audit a running UI or screenshots | `review-ui/SKILL.md` |
@@ -34,6 +35,6 @@ External UI tools and design packs are optional. Read `.ai/matrices/ui-tool-rout
 - Activate: approved feature → selected provider profile → required runtime adapter only.
 
 ## UI sequence
-`discover-requirements → wireframe-ui → design-ui → implement-ui → review-ui → refine-ui`
+`discover-requirements → wireframe-ui → design-ui → assetize-ui when custom artwork is required → implement-ui → review-ui → refine-ui`
 
 Do not skip discovery or wireframe approval unless the user explicitly authorizes recommended defaults or combined phases.

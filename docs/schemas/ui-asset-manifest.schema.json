@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/fivem-resource/ui-asset-manifest.schema.json",
+  "title": "FiveM UI asset manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "screen", "designCanvas", "budgets", "assets"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "screen": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "designCanvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeBytes", "maxAssetBytes"],
+      "properties": {
+        "runtimeBytes": { "type": "integer", "minimum": 1 },
+        "maxAssetBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "source", "runtime", "consumer", "width", "height", "alpha", "behavior", "layer", "dynamicContentInCode", "provenance"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "kind": { "enum": ["shell", "mask", "scale", "texture", "illustration", "icon", "state-overlay"] },
+        "source": { "$ref": "#/$defs/relativePath" },
+        "runtime": { "$ref": "#/$defs/relativePath" },
+        "consumer": { "$ref": "#/$defs/relativePath" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "alpha": { "type": "boolean" },
+        "behavior": { "enum": ["static", "horizontal-clip", "vertical-clip", "mask", "state-overlay"] },
+        "layer": { "type": "integer", "minimum": 0 },
+        "maxBytes": { "type": "integer", "minimum": 1 },
+        "dynamicContentInCode": { "const": true },
+        "safeZone": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "width", "height"],
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method"],
+          "properties": {
+            "method": { "enum": ["supplied", "generated", "derived", "authored"] },
+            "reference": { "$ref": "#/$defs/relativePath" },
+            "promptSummary": { "type": "string", "minLength": 1, "maxLength": 500 }
+          }
+        }
+      }
+    }
+  }
+}

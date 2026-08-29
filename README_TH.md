@@ -16,7 +16,7 @@ Template สำหรับสร้าง FiveM Resource ที่ช่วย�
 - Svelte 5 feature-state lifecycle
 - NUI timeout, cancellation, structured errors และ listener cleanup
 - Optional i18n, database migration และ FXServer runtime tests
-- Wireframe-first UI workflow
+- Wireframe-first UI workflow พร้อมขั้นแยกภาพ UI เป็นชิ้นส่วนและตรวจ Asset Manifest ก่อนประกอบใน Svelte
 - CI validation และ production release builder
 
 ## เริ่มต้นใช้งาน

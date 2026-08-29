@@ -17,7 +17,9 @@
     "test:agents": "node tests/ai/validate-agent-adapters.integration.mjs",
     "check:skills": "node scripts/validate-skills.mjs",
     "check:ui-practices": "node scripts/check-ui-practices.mjs",
+    "check:ui-assets": "node scripts/check-ui-assets.mjs",
     "check:ui": "npm run check --prefix resource/ui",
+    "test:ui-assets": "node tests/ui/check-ui-assets.integration.mjs",
     "test:nui": "node tests/ui/nui-bridge.integration.mjs"
   }
 }

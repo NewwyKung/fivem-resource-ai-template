@@ -13,7 +13,8 @@ Use this skill as a router. Load one primary project skill for the current phase
 |---|---|
 | New screen, changed layout, or unresolved information hierarchy | `.ai/skills/wireframe-ui/SKILL.md` |
 | Approved wireframe needing visual direction | `.ai/skills/design-ui/SKILL.md` |
-| Approved specification needing Svelte/NUI code | `.ai/skills/implement-ui/SKILL.md` |
+| Approved visual design needing custom raster shells, masks, textures, or state artwork | `.ai/skills/assetize-ui/SKILL.md` |
+| Approved specification with all required assets ready, or no custom artwork required | `.ai/skills/implement-ui/SKILL.md` |
 | Existing implementation or screenshots needing audit | `.ai/skills/review-ui/SKILL.md` |
 | Approved findings needing targeted fixes | `.ai/skills/refine-ui/SKILL.md` |
 | NUI transport-only change without redesign | `.ai/skills/create-nui/SKILL.md` |
@@ -30,3 +31,5 @@ Read `AGENTS.md`, `.ai/CONTEXT_BUDGET.md`, the selected primary skill, its requi
 ## Evidence boundary
 
 Follow the selected phase skill's checks. Use browser automation or Computer Use only when available; otherwise report the manual click path. Never claim click, animation, 4K, CEF, or `resmon 0.00 ms` evidence without running the corresponding tool/runtime. Keep external style and stack suggestions subordinate to the approved FiveM specification.
+
+Image generation is optional capability, not a repository dependency. When it is unavailable, `assetize-ui` must stop at an actionable asset brief or use approved supplied artwork; it must not replace missing artwork with approximate CSS drawings.

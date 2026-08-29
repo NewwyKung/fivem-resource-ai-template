@@ -80,7 +80,9 @@ For multi-step or cross-model work, create `.ai/work/current-task.md` from `.ai/
 ## UI workflow
 New screen or major redesign:
 
-`discovery → wireframe-ui → approval → design-ui → approval → implement-ui → review-ui → refine-ui`
+`discovery → wireframe-ui → approval → design-ui → approval → assetize-ui when artwork is required → asset approval → implement-ui → review-ui → refine-ui`
+
+Use `assetize-ui` only after visual approval when complex raster shells, masks, textures, illustrations, or state overlays must be produced before Svelte assembly. Simple HTML/CSS layout and existing SVG/icon-library work proceed directly to `implement-ui`.
 
 For any FiveM UI, NUI, Svelte, wireframe, screenshot, motion, visual-polish, or UI-performance task, use `.agents/skills/fivem-ui-workflow/SKILL.md` as the router. Agents with native project-skill discovery may invoke it directly; other agents read it only for a matching UI task. It selects exactly one primary project skill for the current phase. External tools and design packs are optional lenses and must not be assumed available or loaded together.
 
