@@ -4,6 +4,13 @@ All notable public changes to this project are documented here. The project foll
 
 ## [Unreleased]
 
+### Planned
+
+- Collect Windows and Linux FXServer smoke-test evidence.
+- Refine onboarding based on Public Preview feedback.
+
+## [0.2.0] - 2026-08-29
+
 ### Added
 
 - Asset-first UI phase for decomposing approved visual designs into separate shells, masks, scales, textures, and state overlays before Svelte assembly.
@@ -24,11 +31,7 @@ All notable public changes to this project are documented here. The project foll
 
 - Restored the canonical `resource/ui` Svelte scaffold, lockfile, hardened NUI bridge, production `ui_page`, and generated-output boundary so CI can install and validate the template.
 - Removed stale duplicate development resources that conflicted with repository validation and dependency caching.
-
-### Planned
-
-- Collect Windows and Linux FXServer smoke-test evidence.
-- Refine onboarding based on Public Preview feedback.
+- Windows: quoted the Node executable path used to shell out to `npm`/validation scripts during release creation, fixing a failure when Node was installed under a path containing spaces (e.g. `C:\Program Files\nodejs`).
 
 ## [0.1.0] - 2026-08-05
 

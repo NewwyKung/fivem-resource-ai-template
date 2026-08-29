@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'Newwy'
-version '0.1.0'
+version '0.2.0'
 description 'AI-assisted FiveM resource template'
 
 shared_scripts {

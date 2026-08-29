@@ -77,7 +77,9 @@ const destination = path.join(outputRoot, releaseName);
 const stagingDestination = path.join(outputRoot, `.${releaseName}.tmp-${process.pid}-${Date.now()}`);
 
 function run(command, commandArgs) {
-  const result = spawnSync(command, commandArgs, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
+  const useShell = process.platform === 'win32';
+  const shellSafeCommand = useShell && command.includes(' ') ? `"${command}"` : command;
+  const result = spawnSync(shellSafeCommand, commandArgs, { cwd: root, stdio: 'inherit', shell: useShell });
   if (result.status !== 0) throw new Error(`${command} ${commandArgs.join(' ')} failed.`);
 }
 function wildcard(pattern) {

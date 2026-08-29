@@ -7,7 +7,7 @@
 
 An AI-first template for building maintainable FiveM resources with modular Lua architecture, optional Svelte 5 NUI, requirements discovery, reusable integration knowledge, automated validation, and production release packaging.
 
-> **Status:** Public Preview (`0.1.0`). Static repository checks and release tooling are automated. FiveM natives, lifecycle behavior, disconnect handling, integrations, and NUI focus still require verification on a real FXServer.
+> **Status:** Public Preview (`0.2.0`). Static repository checks and release tooling are automated. FiveM natives, lifecycle behavior, disconnect handling, integrations, and NUI focus still require verification on a real FXServer.
 
 ## What this repository is
 

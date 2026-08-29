@@ -3,10 +3,14 @@
   "name": "fivem-resource-ai-template",
   "type": "fivem-resource-template",
   "author": "Newwy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "framework": {
     "mode": "standalone",
-    "optionalBridges": ["esx", "qbcore", "qbox"]
+    "optionalBridges": [
+      "esx",
+      "qbcore",
+      "qbox"
+    ]
   },
   "runtime": {
     "client": true,
