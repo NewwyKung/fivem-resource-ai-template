@@ -52,6 +52,8 @@ The output folder, packaged `fxmanifest.lua`, source `resource/fxmanifest.lua`, 
 
 It intentionally excludes AI instructions, docs, examples, tests, scripts, UI source, GitHub configuration, development dependencies, source maps, and placeholders. Add new runtime roots deliberately; never copy the repository wholesale.
 
+`resource/README.md` is packaged automatically when present, so a resource-specific readme reaches server owners without extra configuration. There is no such file in the template by default.
+
 ## UI behavior
 
 Default behavior:
@@ -106,7 +108,21 @@ Never store secrets in AI memory, provider profiles, public examples, or source-
 
 ## Output metadata
 
-Each release contains `RELEASE.json` with resource name, version, generation time, UI-build status, and exact fields/patterns sanitized.
+Each release contains `RELEASE.json` with resource name, version, generation time, UI-build status, exact fields/patterns sanitized, the previous packaged version (if any), and a change-log summary (`null` when the change log is disabled or there is no previous release).
+
+## Optional packaged change log
+
+Starting from a resource's second release, the builder can compare the newly packaged files against the immediately preceding release folder and list what changed. This is off by default; enable it per project in `release.config.json`:
+
+```json
+{
+  "changeLog": {
+    "enabled": true
+  }
+}
+```
+
+When enabled and a previous release exists, the builder writes `CHANGES.md` into the release package with `Added`, `Modified`, and `Removed` file lists (by content hash, ignoring `RELEASE.json` and `CHANGES.md` themselves). The first release of a resource never produces this file because there is nothing prior to diff against.
 
 ## Automated integration test
 
@@ -116,7 +132,7 @@ The local integration test builds a real temporary release using:
 node tests/release/create-release.integration.mjs
 ```
 
-It verifies allowlisted output, root/nested glob exclusions, production manifest patching, explicit secret sanitization, metadata evidence, exclusion of development/AI folders, and rollback after a forced sanitizer failure.
+It verifies allowlisted output, root/nested glob exclusions, production manifest patching, explicit secret sanitization, metadata evidence, exclusion of development/AI folders, rollback after a forced sanitizer failure, that the packaged change log stays off by default across successive releases, and that enabling it reports an accurate added/modified/removed file diff plus `resource/README.md` packaging.
 
 ## Final deployment check
 

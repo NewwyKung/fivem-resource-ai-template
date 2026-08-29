@@ -25,6 +25,7 @@ try {
   fs.writeFileSync(path.join(temp, 'resource/config/nested/deep/.gitkeep'), '');
   fs.writeFileSync(path.join(temp, 'resource/html/index.html'), '<!doctype html><title>release test</title>');
   fs.writeFileSync(path.join(temp, 'resource/html/assets/chunks/app.js.map'), '{}');
+  fs.writeFileSync(path.join(temp, 'resource/config/removable.lua'), '-- present only in the first release\n');
 
   const policyPath = path.join(temp, 'release.config.json');
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
@@ -83,6 +84,47 @@ try {
   if (temporaryReleases.length > 0) fail(`failed release left staging output: ${temporaryReleases.join(', ')}`);
   if (fs.readFileSync(path.join(temp, 'resource.json'), 'utf8') !== metadataBeforeFailure) fail('failed release changed resource metadata');
   if (fs.readFileSync(path.join(temp, 'resource/fxmanifest.lua'), 'utf8') !== manifestBeforeFailure) fail('failed release changed the source manifest');
+
+  // Second successful release: the change log is opt-in, so it must stay off by default
+  // even though a previous release now exists to diff against.
+  policy.jsonSecretPaths = [{ file: 'config/release-test.json', path: 'service.webhook', replacement: null }];
+  fs.writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+
+  const secondBuild = spawnSync(process.execPath, ['scripts/create-release.mjs', '--name', 'release_test', '--version', '0.0.2', '--skip-ui-build', '--skip-validation'], { cwd: temp, encoding: 'utf8' });
+  if (secondBuild.status !== 0) throw new Error(`${secondBuild.stdout}\n${secondBuild.stderr}`);
+
+  const secondRelease = path.join(temp, 'release/release_test-0.0.2');
+  if (fs.existsSync(path.join(secondRelease, 'CHANGES.md'))) fail('change log was generated while disabled by default');
+  const secondMetadata = JSON.parse(fs.readFileSync(path.join(secondRelease, 'RELEASE.json'), 'utf8'));
+  if (secondMetadata.previousVersion !== '0.0.1') fail('previousVersion metadata was not recorded');
+  if (secondMetadata.changeLog !== null) fail('change log summary should be null when the feature is disabled');
+
+  // Third release: opt in to the change log and prove it reports the real file diff
+  // (added/modified/removed) against the previous release, plus README packaging.
+  policy.changeLog = { enabled: true };
+  fs.writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+  fs.writeFileSync(path.join(temp, 'resource/README.md'), '# Release Test Resource\n');
+  fs.writeFileSync(path.join(temp, 'resource/config/release-test.json'), JSON.stringify({ service: { webhook: 'https://discord.com/api/webhooks/test/secret', extra: 'changed' } }, null, 2));
+  fs.writeFileSync(path.join(temp, 'resource/config/new-feature.lua'), '-- added for the change log test\n');
+  fs.rmSync(path.join(temp, 'resource/config/removable.lua'));
+
+  const thirdBuild = spawnSync(process.execPath, ['scripts/create-release.mjs', '--name', 'release_test', '--version', '0.0.3', '--skip-ui-build', '--skip-validation'], { cwd: temp, encoding: 'utf8' });
+  if (thirdBuild.status !== 0) throw new Error(`${thirdBuild.stdout}\n${thirdBuild.stderr}`);
+
+  const thirdRelease = path.join(temp, 'release/release_test-0.0.3');
+  if (!fs.existsSync(path.join(thirdRelease, 'README.md'))) fail('resource README.md was not packaged into the release');
+  const changesPath = path.join(thirdRelease, 'CHANGES.md');
+  if (!fs.existsSync(changesPath)) fail('change log was not generated when enabled');
+  const changes = fs.readFileSync(changesPath, 'utf8');
+  if (!/## Added[\s\S]*README\.md/.test(changes)) fail('change log did not report the added README.md');
+  if (!/## Added[\s\S]*config\/new-feature\.lua/.test(changes)) fail('change log did not report the added Lua file');
+  if (!/## Modified[\s\S]*config\/release-test\.json/.test(changes)) fail('change log did not report the modified config file');
+  if (!/## Removed[\s\S]*config\/removable\.lua/.test(changes)) fail('change log did not report the removed file');
+  if (changes.includes('RELEASE.json') || changes.includes('CHANGES.md')) fail('change log must not report its own release metadata files');
+
+  const thirdMetadata = JSON.parse(fs.readFileSync(path.join(thirdRelease, 'RELEASE.json'), 'utf8'));
+  if (thirdMetadata.previousVersion !== '0.0.2') fail('previousVersion metadata did not track the latest prior release');
+  if (!thirdMetadata.changeLog || thirdMetadata.changeLog.added < 2) fail('change log summary metadata is missing or incomplete');
 
   if (!process.exitCode) console.log('[release-test] release package validation passed.');
 } catch (error) {

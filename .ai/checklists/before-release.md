@@ -13,6 +13,8 @@
 - No broad key-name auto-sanitization is used.
 - Configured sanitizer paths/patterns matched and `RELEASE.json` records exact evidence.
 - Secret-value and credential-like assignment scans passed.
+- `resource/README.md`, if present, is packaged into the release automatically.
+- The optional `changeLog` toggle in `release.config.json` reflects the dev's choice; when enabled and a prior release exists, `CHANGES.md` reports an accurate added/modified/removed diff.
 - `node tests/release/create-release.integration.mjs` passed when release logic/policy changed.
 - Dependencies and minimum versions are documented.
 - Resource start, restart, stop, and player-drop cleanup were tested.

@@ -10,6 +10,9 @@ All notable public changes to this project are documented here. The project foll
 - Canonical UI asset manifest schema with source/runtime separation, dimensions, transparency, behavior, ownership, provenance, safe zones, and byte budgets.
 - `assetize-ui` project skill and FiveM UI router support.
 - Deterministic UI asset validation and integration coverage through `npm run check:ui-assets` and `npm run test:ui-assets`.
+- Automatic packaging of `resource/README.md` into a release when the file exists.
+- Optional per-project packaged change log: when `release.config.json.changeLog.enabled` is `true`, releases from the second version onward include `CHANGES.md` with an added/modified/removed file diff against the previous release; off by default.
+- `examples/github-workflows/release.yml` now publishes an actual GitHub release (zipped package attached, notes from `CHANGES.md` when present or auto-generated otherwise) instead of only uploading a workflow artifact.
 
 ### Changed
 

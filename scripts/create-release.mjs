@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
@@ -54,7 +55,23 @@ function resolveVersion() {
   return formatVersion(bumpVersion(highest, args.get('--bump') || 'patch'));
 }
 
+function findHighestReleaseFolder() {
+  if (!fs.existsSync(outputRoot)) return null;
+  const entries = fs.readdirSync(outputRoot)
+    .filter((name) => name.startsWith(`${resourceName}-`))
+    .map((name) => { try { return { name, version: parseVersion(name.slice(resourceName.length + 1)) }; } catch { return null; } })
+    .filter(Boolean);
+  if (!entries.length) return null;
+  return entries.reduce((max, item) => {
+    for (let i = 0; i < 3; i += 1) {
+      if (item.version[i] !== max.version[i]) return item.version[i] > max.version[i] ? item : max;
+    }
+    return max;
+  });
+}
+
 const version = resolveVersion();
+const previousRelease = findHighestReleaseFolder();
 const releaseName = `${resourceName}-${version}`;
 const destination = path.join(outputRoot, releaseName);
 const stagingDestination = path.join(outputRoot, `.${releaseName}.tmp-${process.pid}-${Date.now()}`);
@@ -167,6 +184,46 @@ function scanSecrets() {
   if (findings.length) throw new Error(`Secret scan failed:\n${findings.join('\n')}`);
 }
 
+const changeLogIgnored = new Set(['RELEASE.json', 'CHANGES.md']);
+function collectFiles(directory) {
+  const files = new Map();
+  if (!fs.existsSync(directory)) return files;
+  walk(directory, (file) => files.set(path.relative(directory, file).replaceAll('\\', '/'), file));
+  return files;
+}
+function hashFile(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+function buildChangeLog(previousDirectory, currentDirectory) {
+  const previous = collectFiles(previousDirectory);
+  const current = collectFiles(currentDirectory);
+  const added = [];
+  const modified = [];
+  const removed = [];
+  for (const [relativePath, file] of current) {
+    if (changeLogIgnored.has(relativePath)) continue;
+    if (!previous.has(relativePath)) { added.push(relativePath); continue; }
+    if (hashFile(file) !== hashFile(previous.get(relativePath))) modified.push(relativePath);
+  }
+  for (const relativePath of previous.keys()) {
+    if (changeLogIgnored.has(relativePath) || current.has(relativePath)) continue;
+    removed.push(relativePath);
+  }
+  return { added: added.sort(), modified: modified.sort(), removed: removed.sort() };
+}
+function formatChangeLog(previousReleaseName, currentReleaseName, changes) {
+  const section = (title, entries) => (entries.length ? [`## ${title}`, ...entries.map((entry) => `- ${entry}`), ''] : []);
+  const lines = [
+    `# Changes: ${previousReleaseName} -> ${currentReleaseName}`,
+    '',
+    ...section('Added', changes.added),
+    ...section('Modified', changes.modified),
+    ...section('Removed', changes.removed),
+  ];
+  if (!changes.added.length && !changes.modified.length && !changes.removed.length) lines.push('No packaged file changes detected.', '');
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
 if (!fs.existsSync(path.join(resourceRoot, 'fxmanifest.lua'))) throw new Error(`Resource source is missing fxmanifest.lua: ${path.relative(root, resourceRoot)}`);
 if (fs.existsSync(destination)) throw new Error(`Release already exists: ${path.relative(root, destination)}`);
 if (dryRun) {
@@ -197,7 +254,22 @@ try {
   const sanitized = [];
   applyExplicitSanitizers(sanitized);
   scanSecrets();
-  fs.writeFileSync(path.join(stagingDestination, 'RELEASE.json'), `${JSON.stringify({ resource: resourceName, version, generatedAt: new Date().toISOString(), uiBuildSkipped: skipUiBuild, sanitizedFields: sanitized }, null, 2)}\n`);
+
+  let changeLog = null;
+  if (policy.changeLog?.enabled && previousRelease) {
+    changeLog = buildChangeLog(path.join(outputRoot, previousRelease.name), stagingDestination);
+    fs.writeFileSync(path.join(stagingDestination, 'CHANGES.md'), formatChangeLog(previousRelease.name, releaseName, changeLog));
+  }
+
+  fs.writeFileSync(path.join(stagingDestination, 'RELEASE.json'), `${JSON.stringify({
+    resource: resourceName,
+    version,
+    generatedAt: new Date().toISOString(),
+    uiBuildSkipped: skipUiBuild,
+    sanitizedFields: sanitized,
+    previousVersion: previousRelease ? formatVersion(previousRelease.version) : null,
+    changeLog: changeLog ? { added: changeLog.added.length, modified: changeLog.modified.length, removed: changeLog.removed.length } : null,
+  }, null, 2)}\n`);
 
   sourceFilesTouched = true;
   fs.writeFileSync(metadataPath, `${JSON.stringify({ ...metadata, name: resourceName, version }, null, 2)}\n`);

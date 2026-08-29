@@ -4,6 +4,7 @@
   "outputDirectory": "release",
   "include": [
     "fxmanifest.lua",
+    "README.md",
     "client",
     "server",
     "shared",
@@ -22,6 +23,9 @@
     "**/*.map",
     "**/.DS_Store"
   ],
+  "changeLog": {
+    "enabled": false
+  },
   "jsonSecretPaths": [],
   "textSanitizers": [],
   "secretKeyHints": [

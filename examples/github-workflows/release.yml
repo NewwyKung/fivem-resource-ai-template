@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -35,8 +35,19 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - run: npm run validate
       - run: node scripts/create-release.mjs --name example_resource --version "$VERSION" --skip-validation
-      - uses: actions/upload-artifact@v4
-        with:
-          name: example_resource-${{ env.VERSION }}
-          path: release/example_resource-${{ env.VERSION }}/
-          if-no-files-found: error
+      - name: Archive release folder
+        run: |
+          cd release
+          zip -r "example_resource-$VERSION.zip" "example_resource-$VERSION"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES_FILE="release/example_resource-$VERSION/CHANGES.md"
+          if [ -f "$NOTES_FILE" ]; then
+            gh release create "v$VERSION" "release/example_resource-$VERSION.zip" \
+              --title "example_resource $VERSION" --notes-file "$NOTES_FILE"
+          else
+            gh release create "v$VERSION" "release/example_resource-$VERSION.zip" \
+              --title "example_resource $VERSION" --generate-notes
+          fi

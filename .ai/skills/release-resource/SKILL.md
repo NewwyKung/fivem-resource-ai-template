@@ -49,9 +49,11 @@ node scripts/create-release.mjs --dry-run --skip-ui-build
 7. Apply only explicit `jsonSecretPaths` and `textSanitizers`.
 8. Fail when configured paths/patterns do not match; never assume cleanup succeeded.
 9. Run secret-value and credential-like assignment scans.
-10. Write `RELEASE.json` with exact sanitization evidence.
-11. Run `node tests/release/create-release.integration.mjs` when changing release logic.
-12. Inspect output as a standalone server resource.
+10. Write `RELEASE.json` with exact sanitization evidence, previous version, and change-log summary.
+11. When `resource/README.md` exists, confirm it packaged automatically; no config is required.
+12. When `release.config.json.changeLog.enabled` is `true` and a prior release exists, confirm `CHANGES.md` lists the real added/modified/removed files. Leave the toggle untouched unless the user asks to enable/disable it — it is opt-in per project.
+13. Run `node tests/release/create-release.integration.mjs` when changing release logic.
+14. Inspect output as a standalone server resource.
 
 ## Secret policy
 - Never auto-clear a value from a broad key-name match alone.

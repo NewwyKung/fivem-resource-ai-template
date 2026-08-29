@@ -15,6 +15,7 @@ The template downloads the pinned LuaLS release declared by this repository. It 
 1. Copy `release.yml` to `.github/workflows/release.yml`.
 2. Choose an artifact name that is a valid FiveM resource name.
 3. Use a semantic-version tag such as `v1.2.3`, or enter a version during manual dispatch.
-4. Grant additional permissions only if you later add release publishing. The supplied workflow only uploads a workflow artifact.
+4. The workflow requires `contents: write` (already set) to publish a GitHub release with the built package zipped and attached; it uses the built-in `GITHUB_TOKEN`, so no extra secret is needed.
+5. Release notes come from the packaged `CHANGES.md` when the optional `changeLog` feature (`release.config.json`) is enabled; otherwise GitHub auto-generates notes from commits/PRs since the previous tag.
 
 Never place provider credentials in workflow files. Add selected deployment secrets through GitHub environment or repository secrets and keep them out of the packaged resource.
