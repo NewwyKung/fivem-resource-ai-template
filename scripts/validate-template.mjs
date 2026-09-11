@@ -203,6 +203,54 @@ if (exists('resource/fxmanifest.lua')) {
     const base = (wildcardIndex === -1 ? entry : entry.slice(0, wildcardIndex)).replace(/\/$/, '');
     if (base && !exists(path.posix.join('resource', base))) errors.push(`Manifest path does not exist: ${entry}`);
   }
+
+  const scriptEntries = entries.filter((entry) => !entry.startsWith('html/'));
+  const scriptPatterns = scriptEntries.map((entry) => globToRegExp(entry));
+  for (const luaFile of walkResourceLuaFiles()) {
+    if (!scriptPatterns.some((pattern) => pattern.test(luaFile))) {
+      errors.push(`resource/${luaFile} is not loaded by resource/fxmanifest.lua (add it to shared_scripts/client_scripts/server_scripts).`);
+    }
+  }
+}
+
+function globToRegExp(glob) {
+  let pattern = '';
+  for (let i = 0; i < glob.length; i++) {
+    const char = glob[i];
+    if (char === '*') {
+      if (glob[i + 1] === '*') {
+        pattern += '.*';
+        i++;
+      } else {
+        pattern += '[^/]*';
+      }
+    } else if ('.^$+?()[]{}|\\'.includes(char)) {
+      pattern += `\\${char}`;
+    } else {
+      pattern += char;
+    }
+  }
+  return new RegExp(`^${pattern}$`);
+}
+
+function walkResourceLuaFiles() {
+  const excluded = new Set(['html', 'ui']);
+  const files = [];
+
+  function walk(relativeDirectory) {
+    const absoluteDirectory = path.join(root, 'resource', relativeDirectory);
+    for (const entry of fs.readdirSync(absoluteDirectory, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (relativeDirectory === '' && excluded.has(entry.name)) continue;
+        walk(path.posix.join(relativeDirectory, entry.name));
+      } else if (entry.isFile() && entry.name.endsWith('.lua') && entry.name !== 'fxmanifest.lua') {
+        files.push(normalize(path.posix.join(relativeDirectory, entry.name)));
+      }
+    }
+  }
+
+  walk('');
+  return files;
 }
 
 for (const manifestPath of [

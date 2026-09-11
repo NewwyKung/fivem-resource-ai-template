@@ -220,6 +220,13 @@ try {
   console.log(`Database: ${database}`);
   console.log(`Shared library: ${sharedLibrary}`);
   console.log('\nNext: install UI dependencies, run npm run validate, and review .ai/memory/environment.md.');
+  console.log(
+    '\nresource/client/main.lua and resource/server/main.lua are a working bootstrap (Init flow, '
+    + 'NUI ready handshake, Debug/ENUM helpers), not throwaway sample code — build your own resource on '
+    + 'top of it. Add feature modules under resource/client/modules/, resource/server/modules/, and shared '
+    + 'utilities under resource/shared/lib/ (see docs/module-loading.md), then declare each new file in '
+    + 'resource/fxmanifest.lua the same way the existing bootstrap files are declared.',
+  );
 } finally {
   terminal?.close();
 }

@@ -1,5 +1,7 @@
 ---@meta
 
+---@alias PlayerId integer|string
+
 ---@class vector2
 ---@field x number
 ---@field y number
@@ -56,13 +58,17 @@ function AddEventHandler(eventName, callback) end
 function RemoveEventHandler(handlerId) end
 
 ---@param eventName string
----@param target integer
+---@param target PlayerId
 ---@param ... any
 function TriggerClientEvent(eventName, target, ...) end
 
 ---@param eventName string
 ---@param ... any
 function TriggerServerEvent(eventName, ...) end
+
+---@param eventName string
+---@param ... any
+function TriggerEvent(eventName, ...) end
 
 ---@param callbackType string
 ---@param callback fun(data: table, cb: fun(response: any))
@@ -95,13 +101,20 @@ function LoadResourceFile(resourceName, fileName) end
 ---@return boolean
 function SaveResourceFile(resourceName, fileName, data, dataLength) end
 
----@param source integer
+---@param source PlayerId
 ---@return integer
 function GetPlayerPing(source) end
 
----@param source integer
+---@param source PlayerId
 ---@return integer
 function GetPlayerPed(source) end
+
+---@param source PlayerId
+---@return string
+function GetPlayerName(source) end
+
+---@return PlayerId[]
+function GetPlayers() end
 
 ---@param entity integer
 ---@return boolean
@@ -110,6 +123,26 @@ function DoesEntityExist(entity) end
 ---@param entity integer
 ---@return vector3
 function GetEntityCoords(entity) end
+
+---@param entity integer
+---@param x number
+---@param y number
+---@param z number
+---@param alive boolean?
+---@param deadFlag boolean?
+---@param ragdollFlag boolean?
+---@param clearArea boolean?
+function SetEntityCoords(entity, x, y, z, alive, deadFlag, ragdollFlag, clearArea) end
+
+---@param entity integer
+---@param heading number
+function SetEntityHeading(entity, heading) end
+
+---@param commandString string
+function ExecuteCommand(commandString) end
+
+---@param handler fun(req: table, res: table)
+function SetHttpHandler(handler) end
 
 ---@param entity integer
 ---@return integer
@@ -122,9 +155,15 @@ function NetworkGetEntityFromNetworkId(netId) end
 ---@param entity integer
 function DeleteEntity(entity) end
 
----@param name string
----@param callback fun(...: any): any
-function exports(name, callback) end
+---@class ExportsTable
+---@field [string] table<string, fun(...: any): any>
+---@overload fun(name: string, callback: fun(...: any): any)
+exports = {}
+
+---@class Json
+---@field encode fun(value: any, options: table?): string
+---@field decode fun(value: string): any
+json = {}
 
 ---@generic T
 ---@param value T

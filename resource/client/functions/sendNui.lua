@@ -1,10 +1,8 @@
 SendNuiEvent = function (action, data)
     if action ~= "IS_READY" then
-        CreateThread(function()
-            while not NUI_READY do
-                Wait(500)
-            end
-        end)
+        while not NUI_READY do
+            Wait(100)
+        end
     end
 
     if data then

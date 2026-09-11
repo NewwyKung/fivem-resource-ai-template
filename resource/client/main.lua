@@ -8,7 +8,7 @@ Init = function()
     repeat
 		Wait(300)
 		SendNuiEvent("IS_READY")
-	until UI.IS_READY
+	until NUI_READY
 
     --[[
         Init Resource And data
@@ -23,6 +23,8 @@ AddEventHandler('onClientResourceStart', function(startedResource)
     end
 
     -- Bootstrap client modules here when the resource needs runtime behavior.
+    -- Add your own logic under resource/client/modules/ (see docs/module-loading.md)
+    -- and wire it into resource/fxmanifest.lua the same way this file is loaded.
 end)
 
 AddEventHandler('onClientResourceStop', function(stoppedResource)
@@ -39,8 +41,8 @@ RegisterNetEvent(resourceName .. ':server:status', function(status)
     Debug.Info( 'Server Status: ' .. ENUM.SERVER_STATUS.RESULT[status])
 end)
 
-RegisterNuiCallback("READY", function(data, cb)
-    cb(true)
+RegisterNUICallback("READY", function(data, cb)
+    cb({ ok = true, requestId = data and data.requestId })
     NUI_READY = true
 end)
 
