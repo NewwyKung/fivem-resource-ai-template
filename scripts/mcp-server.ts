@@ -184,6 +184,15 @@ function runCommand(cmd: string, args: string[], cwd: string) {
 
 const server = new McpServer({ name: "fivem-auto-dev", version: "0.1.0" });
 
+// Computed once at startup: the editor spawns one MCP server process per
+// workspace, so cwd (and therefore the resource it belongs to) never
+// changes for the life of this process. This is also what drives which
+// tools below get registered at all, not just how they behave.
+const ctx = loadContext(process.cwd());
+const cfg = loadMcpConfig(process.cwd());
+const hasNui = cfg.nui?.enabled !== false && (ctx.resourceType !== "pure-lua" || Boolean(cfg.nui?.enabled));
+const hasDatabase = Boolean(cfg.database?.schemaFile) || Boolean(cfg.database?.driver && cfg.database.driver !== "none");
+
 server.registerTool(
   "get_current_context",
   {
@@ -193,8 +202,6 @@ server.registerTool(
     inputSchema: {},
   },
   async () => {
-    const ctx = loadContext(process.cwd());
-    const cfg = loadMcpConfig(process.cwd());
     return textResult(
       JSON.stringify(
         {
@@ -203,6 +210,14 @@ server.registerTool(
           workingDirectory: ctx.workingDirectory,
           resourceType: ctx.resourceType,
           uiDir: ctx.uiDir,
+          activeTools: [
+            "get_current_context",
+            "auto_build_and_restart",
+            "read_resource_logs",
+            "run_in_game_test",
+            ...(hasDatabase ? ["inspect_db_schema"] : []),
+            ...(hasNui ? ["run_nui_automation"] : []),
+          ],
           bridgeConfigured: Boolean(FXSERVER_API_KEY),
           fxserverUrl: FXSERVER_URL,
         },
@@ -222,8 +237,6 @@ server.registerTool(
     inputSchema: {},
   },
   async () => {
-    const ctx = loadContext(process.cwd());
-    const cfg = loadMcpConfig(process.cwd());
     const resourceName = cfg.resourceName || ctx.resourceName;
 
     if (ctx.uiDir) {
@@ -263,8 +276,6 @@ server.registerTool(
     },
   },
   async ({ lines, level, resource }) => {
-    const ctx = loadContext(process.cwd());
-    const cfg = loadMcpConfig(process.cwd());
     const targetResource = resource || cfg.resourceName || ctx.resourceName;
     const query = new URLSearchParams({
       resource: targetResource,
@@ -283,100 +294,106 @@ server.registerTool(
   }
 );
 
-server.registerTool(
-  "inspect_db_schema",
-  {
-    title: "Inspect database schema",
-    description:
-      "Reads the schema file declared in .mcp-config.json's database.schemaFile. Does not connect to a live database and does not assume oxmysql or any provider — point database.schemaFile at your resource's own .sql schema/migration file.",
-    inputSchema: {},
-  },
-  async () => {
-    const cfg = loadMcpConfig(process.cwd());
-    if (!cfg.database?.schemaFile) {
-      return textResult(
-        "no database.schemaFile configured in .mcp-config.json; this tool only reads a local schema file, it never connects to a live database."
-      );
-    }
-
-    const schemaPath = resolve(process.cwd(), cfg.database.schemaFile);
-    if (!existsSync(schemaPath)) {
-      return textResult(`configured schema file not found: ${schemaPath}`);
-    }
-
-    return textResult(truncate(readFileSync(schemaPath, "utf8"), 80, 6000));
-  }
-);
-
-server.registerTool(
-  "run_nui_automation",
-  {
-    title: "Run NUI browser automation",
-    description:
-      "Drives the NUI dev URL with Playwright (a short click/fill action script), reports console errors and a screenshot path. Requires `npm i -D playwright && npx playwright install chromium` in this workspace — not installed by default.",
-    inputSchema: {
-      actions: z
-        .array(
-          z.object({
-            type: z.enum(["click", "fill", "waitFor"]),
-            selector: z.string(),
-            value: z.string().optional(),
-          })
-        )
-        .optional(),
-      url: z.string().optional(),
+// Only registered when .mcp-config.json declares a database — a resource
+// with no schema file configured never sees this tool at all, rather than
+// seeing it and getting a "not configured" message back.
+if (hasDatabase) {
+  server.registerTool(
+    "inspect_db_schema",
+    {
+      title: "Inspect database schema",
+      description:
+        "Reads the schema file declared in .mcp-config.json's database.schemaFile. Does not connect to a live database and does not assume oxmysql or any provider — point database.schemaFile at your resource's own .sql schema/migration file.",
+      inputSchema: {},
     },
-  },
-  async ({ actions, url }) => {
-    const cfg = loadMcpConfig(process.cwd());
-    const targetUrl = url || cfg.nui?.devUrl;
-    if (!targetUrl) {
-      return textResult("no NUI dev URL; pass `url` or set nui.devUrl in .mcp-config.json.");
-    }
-
-    let playwright: any;
-    try {
-      playwright = await import("playwright");
-    } catch {
-      return textResult(
-        "playwright is not installed in this workspace. Run `npm i -D playwright && npx playwright install chromium` to enable this tool."
-      );
-    }
-
-    const browser = await playwright.chromium.launch();
-    const page = await browser.newPage();
-    const consoleErrors: string[] = [];
-    page.on("console", (msg: any) => {
-      if (msg.type() === "error") consoleErrors.push(msg.text());
-    });
-    page.on("pageerror", (err: Error) => consoleErrors.push(err.message));
-
-    try {
-      await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 10000 });
-
-      for (const action of actions || []) {
-        if (action.type === "click") await page.click(action.selector, { timeout: 5000 });
-        else if (action.type === "fill") await page.fill(action.selector, action.value || "", { timeout: 5000 });
-        else if (action.type === "waitFor") await page.waitForSelector(action.selector, { timeout: 5000 });
+    async () => {
+      if (!cfg.database?.schemaFile) {
+        return textResult("database.driver is set but database.schemaFile is missing in .mcp-config.json.");
       }
 
-      const screenshotPath = join(mkdtempSync(join(tmpdir(), "mcp-nui-")), "screenshot.png");
-      await page.screenshot({ path: screenshotPath });
+      const schemaPath = resolve(process.cwd(), cfg.database.schemaFile);
+      if (!existsSync(schemaPath)) {
+        return textResult(`configured schema file not found: ${schemaPath}`);
+      }
 
-      return textResult(
-        JSON.stringify(
-          { ok: consoleErrors.length === 0, consoleErrors: consoleErrors.slice(0, 20), screenshotPath },
-          null,
-          2
-        )
-      );
-    } catch (err) {
-      return textResult(`nui automation failed: ${(err as Error).message}`);
-    } finally {
-      await browser.close();
+      return textResult(truncate(readFileSync(schemaPath, "utf8"), 80, 6000));
     }
-  }
-);
+  );
+}
+
+// Only registered for a resource that actually has a UI: resourceType
+// detected a package.json with svelte/react in ui/, or .mcp-config.json
+// explicitly set nui.enabled. A pure-Lua resource never sees this tool.
+if (hasNui) {
+  server.registerTool(
+    "run_nui_automation",
+    {
+      title: "Run NUI browser automation",
+      description:
+        "Drives the NUI dev URL with Playwright (a short click/fill action script), reports console errors and a screenshot path. Requires `npm i -D playwright && npx playwright install chromium` in this workspace — not installed by default.",
+      inputSchema: {
+        actions: z
+          .array(
+            z.object({
+              type: z.enum(["click", "fill", "waitFor"]),
+              selector: z.string(),
+              value: z.string().optional(),
+            })
+          )
+          .optional(),
+        url: z.string().optional(),
+      },
+    },
+    async ({ actions, url }) => {
+      const targetUrl = url || cfg.nui?.devUrl;
+      if (!targetUrl) {
+        return textResult("no NUI dev URL; pass `url` or set nui.devUrl in .mcp-config.json.");
+      }
+
+      let playwright: any;
+      try {
+        playwright = await import("playwright");
+      } catch {
+        return textResult(
+          "playwright is not installed in this workspace. Run `npm i -D playwright && npx playwright install chromium` to enable this tool."
+        );
+      }
+
+      const browser = await playwright.chromium.launch();
+      const page = await browser.newPage();
+      const consoleErrors: string[] = [];
+      page.on("console", (msg: any) => {
+        if (msg.type() === "error") consoleErrors.push(msg.text());
+      });
+      page.on("pageerror", (err: Error) => consoleErrors.push(err.message));
+
+      try {
+        await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 10000 });
+
+        for (const action of actions || []) {
+          if (action.type === "click") await page.click(action.selector, { timeout: 5000 });
+          else if (action.type === "fill") await page.fill(action.selector, action.value || "", { timeout: 5000 });
+          else if (action.type === "waitFor") await page.waitForSelector(action.selector, { timeout: 5000 });
+        }
+
+        const screenshotPath = join(mkdtempSync(join(tmpdir(), "mcp-nui-")), "screenshot.png");
+        await page.screenshot({ path: screenshotPath });
+
+        return textResult(
+          JSON.stringify(
+            { ok: consoleErrors.length === 0, consoleErrors: consoleErrors.slice(0, 20), screenshotPath },
+            null,
+            2
+          )
+        );
+      } catch (err) {
+        return textResult(`nui automation failed: ${(err as Error).message}`);
+      } finally {
+        await browser.close();
+      }
+    }
+  );
+}
 
 server.registerTool(
   "run_in_game_test",
@@ -393,8 +410,6 @@ server.registerTool(
     },
   },
   async ({ serverId, scenario, resource }) => {
-    const ctx = loadContext(process.cwd());
-    const cfg = loadMcpConfig(process.cwd());
     const targetResource = resource || cfg.resourceName || ctx.resourceName;
 
     const beforeQuery = new URLSearchParams({ resource: targetResource, lines: "50", level: "error" });

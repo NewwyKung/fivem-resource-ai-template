@@ -107,6 +107,19 @@ optional `.mcp-config.json` so concurrent per-resource chats stay scoped.
 - None blocking; `check:lua`/LuaLS verification of the two new Lua files is
   outstanding because no Lua toolchain was available in this environment.
 
+## Follow-up: dynamic tool registration (2026-09-11)
+Initial delivery registered all 6 MCP tools unconditionally; only their
+internal behavior varied by `.mcp-config.json`, which did not match the
+"create tools per resource" requirement. Fixed: `loadContext`/`loadMcpConfig`
+now run once at server startup, and `inspect_db_schema` /
+`run_nui_automation` are only passed to `server.registerTool` when
+`hasDatabase` / `hasNui` are true — a pure-Lua resource with no
+`.mcp-config.json` now advertises 4 tools, an NUI+database resource
+advertises 6. Verified with a scripted `tools/list` call against two
+synthetic resource fixtures (pure-Lua vs. NUI+oxmysql), confirming the
+tool sets differ as expected. `npm run validate:fast` and
+`npm run check:secrets` re-run clean afterward.
+
 ## Approval
 - Approved by: repository owner, via in-chat discovery questions.
 - Approval date: 2026-09-11.

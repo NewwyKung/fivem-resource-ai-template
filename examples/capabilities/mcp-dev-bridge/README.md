@@ -33,7 +33,11 @@ user only wants a one-off manual test.
   editor (Cursor, Claude Desktop) launches. It is context-aware: it reads
   `fxmanifest.lua` from the open workspace to scope every tool call to that
   one resource, and it never talks to the FXServer directly for anything the
-  bridge doesn't already expose.
+  bridge doesn't already expose. Its tool set is also dynamic per resource:
+  `inspect_db_schema` only registers when `.mcp-config.json` declares a
+  database, and `run_nui_automation` only registers when the resource has a
+  detected UI (or `nui.enabled` is set) — a pure-Lua resource never sees
+  either tool.
 - `.mcp-config.json.example` — copy to the resource's repo root as
   `.mcp-config.json` to describe that resource to the MCP server (NUI dev
   URL, whether runtime tests are wired up, etc). Optional; the MCP server
