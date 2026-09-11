@@ -80,9 +80,10 @@ so a resource is never silently instrumented.
 4. Copy `.mcp-config.json.example` to the resource repo root as
    `.mcp-config.json` and adjust it (optional).
 5. From the resource repo root: `npm install` then `npm run mcp` to start
-   the MCP server standalone, or let Cursor/Claude Desktop launch it via
-   `.cursor/mcp.json` (see that file's comments for the token you must fill
-   in — it must match `mcp_token` above).
+   the MCP server standalone, or copy `.cursor/mcp.json.example` to
+   `.cursor/mcp.json` (gitignored — never commit the real one) and fill in
+   `FXSERVER_URL`/`FXSERVER_API_KEY` (the latter must match `mcp_token`
+   above) to let Cursor/Claude Desktop launch it.
 6. Optional: `npm run mcp:watch` runs the same build -> lint -> restart loop
    as `auto_build_and_restart`, automatically, on every file change in the
    resource (and its `ui/`, if present) — for when you'd rather not have the

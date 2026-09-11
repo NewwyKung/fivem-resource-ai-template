@@ -45,6 +45,13 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Local per-developer MCP dev-bridge config/secrets (see examples/capabilities/mcp-dev-bridge/).
+# Keep only the .example versions tracked. .template-sync.json is intentionally NOT
+# ignored — it's meant to be committed so the team can see what template state was
+# last synced.
+.mcp-config.json
+.cursor/mcp.json
 *.tgz
 .yarn-integrity
 .pnp.*
