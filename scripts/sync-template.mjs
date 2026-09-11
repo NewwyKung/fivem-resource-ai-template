@@ -63,7 +63,7 @@ function parseArguments(argv) {
     }
 
     const key = argument.slice(2);
-    if (key === 'yes' || key === 'help' || key === 'dry-run') {
+    if (key === 'yes' || key === 'help' || key === 'dry-run' || key === 'list-only') {
       values[key] = true;
       continue;
     }
@@ -83,9 +83,19 @@ Never touches resource/ (the resource's own game code) or resource-specific
 state (.ai/memory, .ai/work, .ai/index.json, integrations.json, package.json)
 unless explicitly requested with --paths and confirmed with --yes.
 
+Two ways to choose what to sync:
+  1. Default path list (deterministic, see DEFAULT_SYNC_PATHS in this file).
+  2. --list-only: prints every changed file repo-wide (or under --paths, if
+     given), each marked [guarded] or not, and changes nothing. Meant to be
+     read by an AI agent (see .ai/skills/sync-template/SKILL.md), which
+     decides what's genuinely template plumbing worth pulling in versus
+     resource-specific or intentionally diverged, then re-runs with an
+     explicit --paths built from that judgment.
+
 Usage:
   npm run sync:template
   npm run sync:template -- --dry-run
+  npm run sync:template -- --list-only
   npm run sync:template -- --paths ".ai/rules,examples" --yes
   npm run sync:template -- --ref v0.3.0
 
@@ -93,7 +103,9 @@ Options:
   --remote-url <url>   Template repository URL (default: ${DEFAULT_REMOTE_URL})
   --remote-name <name> Local git remote name to use/create (default: ${DEFAULT_REMOTE_NAME})
   --ref <ref>          Branch, tag, or commit to sync from (default: ${DEFAULT_REF})
-  --paths <list>       Comma-separated paths to sync instead of the default list
+  --paths <list>       Comma-separated paths to sync instead of the default list; with
+                        --list-only, narrows the listing instead (whole repo if omitted)
+  --list-only          List every changed file (marked [guarded] or not) and exit; changes nothing
   --dry-run            Show what would change without touching the working tree
   --yes                Required to proceed when any resolved path is guarded (see above)
   --help                Show this help`);
@@ -130,17 +142,6 @@ function main() {
   const remoteUrl = args['remote-url'] || DEFAULT_REMOTE_URL;
   const remoteName = args['remote-name'] || DEFAULT_REMOTE_NAME;
   const ref = args.ref || DEFAULT_REF;
-  const paths = args.paths ? args.paths.split(',').map((value) => value.trim()).filter(Boolean) : DEFAULT_SYNC_PATHS;
-
-  const guarded = resolveGuardedPaths(paths);
-  if (guarded.length > 0 && !args.yes) {
-    console.error(
-      `[sync-template] refusing to sync resource-specific path(s) without --yes: ${guarded.join(', ')}\n` +
-        `These hold this resource's own state (game code, confirmed environment, in-flight requirements, or a` +
-        ` generated index/selection file), not template plumbing. Re-run with --yes only if you are certain.`
-    );
-    process.exit(1);
-  }
 
   const remotes = run(['remote']).stdout.split('\n').map((line) => line.trim());
   if (!remotes.includes(remoteName)) {
@@ -162,6 +163,48 @@ function main() {
   const sourceRef = `${remoteName}/${ref}`;
   const resolveResult = run(['rev-parse', 'FETCH_HEAD']);
   const sourceCommit = resolveResult.stdout.trim();
+
+  if (args['list-only']) {
+    const scopePaths = args.paths ? args.paths.split(',').map((value) => value.trim()).filter(Boolean) : [];
+    const diffArgs = ['diff', '--name-status', 'HEAD', 'FETCH_HEAD'];
+    if (scopePaths.length > 0) diffArgs.push('--', ...scopePaths);
+    const changed = run(diffArgs)
+      .stdout.split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [status, ...fileParts] = line.split('\t');
+        return { status, file: fileParts.join('\t') };
+      });
+
+    if (changed.length === 0) {
+      console.log(`[sync-template] no differences from ${sourceRef} (${sourceCommit.slice(0, 12)}) in scope.`);
+      return;
+    }
+
+    console.log(`[sync-template] ${changed.length} changed file(s) vs ${sourceRef} (${sourceCommit.slice(0, 12)}):`);
+    for (const { status, file } of changed) {
+      const guarded = resolveGuardedPaths([file]).length > 0 ? ' [guarded — needs --yes]' : '';
+      console.log(`  ${status}\t${file}${guarded}`);
+    }
+    console.log(
+      '\n[sync-template] nothing was changed (list-only). Re-run with --paths "<comma-separated files/dirs>"' +
+        ' (add --yes only if the chosen set includes a [guarded] path you specifically intend to sync).'
+    );
+    return;
+  }
+
+  const paths = args.paths ? args.paths.split(',').map((value) => value.trim()).filter(Boolean) : DEFAULT_SYNC_PATHS;
+
+  const guarded = resolveGuardedPaths(paths);
+  if (guarded.length > 0 && !args.yes) {
+    console.error(
+      `[sync-template] refusing to sync resource-specific path(s) without --yes: ${guarded.join(', ')}\n` +
+        `These hold this resource's own state (game code, confirmed environment, in-flight requirements, or a` +
+        ` generated index/selection file), not template plumbing. Re-run with --yes only if you are certain.`
+    );
+    process.exit(1);
+  }
 
   // Only paths that actually exist at the source ref; git checkout errors
   // on a pathspec that matches nothing.

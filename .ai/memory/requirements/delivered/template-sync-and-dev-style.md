@@ -101,6 +101,26 @@ surfaced to the user rather than silently resolved.
   (fetch, path-existence check, guarded-path refusal, dirty-tree check) were
   verified in isolation against this repo's own `origin`.
 
+## Follow-up: AI-driven file selection (2026-09-11)
+User wanted to just say "update the template" and have the AI decide which
+changed files to pull in, rather than hand-picking `--paths` (the original
+default-list-only design). Added:
+- `scripts/sync-template.mjs --list-only`: fetches and prints a
+  `git diff --name-status` against the whole repo (or `--paths`-scoped),
+  each line marked `[guarded]` per the existing `GUARDED_PREFIXES`/
+  `GUARDED_EXACT` — read-only, never touches the working tree.
+- `.ai/skills/sync-template/SKILL.md`: reads that list, classifies each
+  file as safe template plumbing / guarded / ambiguous (asks rather than
+  guessing on ambiguous or guarded files), builds a `--paths` list from the
+  safe set only, dry-runs it for the user, then applies — never commits.
+
+Verified by simulating a real divergence: appended a line to
+`.ai/rules/lua.md` (safe) and `resource/server/main.lua` (guarded),
+committed locally, ran `--list-only` against `origin/main`, confirmed the
+output correctly marked only the `resource/` file `[guarded]`, then
+`git reset --soft HEAD~1` + `git restore` to cleanly discard the test
+commit before it was ever pushed.
+
 ## Approval
 - Approved by: repository owner, via in-chat question (sync-script
   approach chosen over git-remote-only) and free-text answer for the
