@@ -3,6 +3,7 @@
   "generatedFrom": "registry filenames",
   "features": {
     "framework-hardening": ".ai/features/framework-hardening.md",
+    "mcp-dev-bridge": ".ai/features/mcp-dev-bridge.md",
     "resource-structure": ".ai/features/resource-structure.md"
   },
   "components": {},

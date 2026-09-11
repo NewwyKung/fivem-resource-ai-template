@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fivem-auto-dev": {
+      "command": "npx",
+      "args": ["-y", "tsx", "./scripts/mcp-server.ts"],
+      "env": {
+        "FXSERVER_URL": "http://127.0.0.1:30120",
+        "FXSERVER_API_KEY": "replace-me"
+      }
+    }
+  }
+}

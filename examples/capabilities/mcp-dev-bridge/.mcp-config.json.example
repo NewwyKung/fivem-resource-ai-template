@@ -1,0 +1,19 @@
+{
+  "$comment": "Copy to the resource repo root as .mcp-config.json. Every field is optional; scripts/mcp-server.ts auto-detects what it can from fxmanifest.lua and resource/ui when this file is absent or a field is omitted.",
+
+  "resourceName": null,
+  "resourcePath": "resource",
+
+  "nui": {
+    "enabled": false,
+    "devUrl": "http://localhost:5173"
+  },
+
+  "runtimeTests": {
+    "enabled": false
+  },
+
+  "database": {
+    "driver": "none"
+  }
+}
