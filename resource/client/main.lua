@@ -1,4 +1,21 @@
 local resourceName = GetCurrentResourceName()
+NUI_READY = false
+
+Init = function()
+    Debug.Info('Initialize Resource..')
+
+    -- NUI_READY Init Nui
+    repeat
+		Wait(300)
+		SendNuiEvent("IS_READY")
+	until UI.IS_READY
+
+    --[[
+        Init Resource And data
+    ]]
+    Config.ClientLoaded()
+    Debug.Success('Success Initialize !')
+end
 
 AddEventHandler('onClientResourceStart', function(startedResource)
     if startedResource ~= resourceName then
@@ -16,3 +33,15 @@ AddEventHandler('onClientResourceStop', function(stoppedResource)
     -- Always release NUI focus during a resource restart/stop.
     SetNuiFocus(false, false)
 end)
+
+-- Example ENUM for down size data
+RegisterNetEvent(resourceName .. ':server:status', function(status)
+    Debug.Info( 'Server Status: ' .. ENUM.SERVER_STATUS.RESULT[status])
+end)
+
+RegisterNuiCallback("READY", function(data, cb)
+    cb(true)
+    NUI_READY = true
+end)
+
+Init()
