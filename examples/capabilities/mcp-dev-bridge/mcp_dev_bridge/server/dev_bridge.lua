@@ -25,6 +25,7 @@ local ALLOW_REMOTE = GetConvar('mcp_bridge_allow_remote', 'false') == 'true'
 
 local LOG_BUFFER = {}
 local LOG_BUFFER_MAX = 300
+local LOG_SEQ = 0
 local rawPrint = print
 
 local function levelOf(message)
@@ -37,6 +38,23 @@ local function levelOf(message)
     return 'info'
 end
 
+-- Collapses immediate repeats (a log line spamming every tick) into one
+-- entry with a repeatCount instead of flooding the ring buffer/watchers.
+local function pushLog(level, message)
+    local last = LOG_BUFFER[#LOG_BUFFER]
+    if last and last.level == level and last.message == message then
+        last.repeatCount = (last.repeatCount or 1) + 1
+        last.ts = os.time()
+        return
+    end
+
+    LOG_SEQ = LOG_SEQ + 1
+    LOG_BUFFER[#LOG_BUFFER + 1] = { seq = LOG_SEQ, ts = os.time(), level = level, message = message }
+    if #LOG_BUFFER > LOG_BUFFER_MAX then
+        table.remove(LOG_BUFFER, 1)
+    end
+end
+
 print = function(...)
     local parts = {}
     for i = 1, select('#', ...) do
@@ -44,10 +62,7 @@ print = function(...)
     end
     local message = table.concat(parts, '\t')
 
-    LOG_BUFFER[#LOG_BUFFER + 1] = { ts = os.time(), level = levelOf(message), message = message }
-    if #LOG_BUFFER > LOG_BUFFER_MAX then
-        table.remove(LOG_BUFFER, 1)
-    end
+    pushLog(levelOf(message), message)
 
     rawPrint(...)
 end
@@ -64,6 +79,25 @@ local function readOwnLogs(lines, levelFilter)
         end
     end
     return out
+end
+
+-- Returns only entries newer than sinceSeq (nil sinceSeq just reports the
+-- current tip so a caller can establish a starting cursor).
+local function readOwnLogsSince(sinceSeq, levelFilter)
+    local out = {}
+    if sinceSeq == nil then
+        return out, LOG_SEQ
+    end
+    for _, entry in ipairs(LOG_BUFFER) do
+        if entry.seq > sinceSeq and (not levelFilter or entry.level == levelFilter) then
+            out[#out + 1] = entry
+        end
+    end
+    return out, LOG_SEQ
+end
+
+local function clearOwnLogs()
+    LOG_BUFFER = {}
 end
 
 -- ---------------------------------------------------------------------
@@ -105,14 +139,22 @@ ACTIONS.teleport = function(payload)
         return false, 'serverId and coords {x, y, z} are required'
     end
 
+    local x, y, z = tonumber(coords.x), tonumber(coords.y), tonumber(coords.z)
+    if not x or not y or not z then
+        return false, 'coords.x, coords.y, and coords.z must be numbers'
+    end
+
     local ped = GetPlayerPed(serverId)
     if not ped or ped == 0 then
         return false, ('no connected player with serverId %s'):format(serverId)
     end
 
-    SetEntityCoords(ped, tonumber(coords.x), tonumber(coords.y), tonumber(coords.z), false, false, false, true)
+    SetEntityCoords(ped, x, y, z, false, false, false, true)
     if coords.heading then
-        SetEntityHeading(ped, tonumber(coords.heading))
+        local heading = tonumber(coords.heading)
+        if heading then
+            SetEntityHeading(ped, heading)
+        end
     end
     return true, ('teleported serverId %s'):format(serverId)
 end
@@ -248,6 +290,115 @@ SetHttpHandler(function(req, res)
         local result = readOwnLogs(lines, levelFilter)
         audit('logs', ip, true, ('resource=%s lines=%d'):format(GetCurrentResourceName(), #result))
         sendJson(res, 200, { resource = GetCurrentResourceName(), lines = result })
+        return
+    end
+
+    -- Long-poll: waits (server-side, up to timeoutMs) for a NEW log line
+    -- past `since` instead of the caller having to poll /mcp/logs in a
+    -- loop. Call once with no `since` to get a starting cursor (`lastSeq`),
+    -- then call again passing that value as `since` to actually wait.
+    if barePath == '/mcp/logs/watch' and req.method == 'GET' then
+        local params = parseQuery(query)
+        local targetResource = params.resource or GetCurrentResourceName()
+        local levelFilter = params.level or 'error'
+        local sinceSeq = tonumber(params.since)
+        local timeoutMs = math.min(math.max(tonumber(params.timeoutMs) or 5000, 0), 6000)
+
+        local function fetchSince()
+            if targetResource == GetCurrentResourceName() then
+                return readOwnLogsSince(sinceSeq, levelFilter)
+            end
+            local ok, data = pcall(function()
+                return exports[targetResource]:mcp_getLogsSince(sinceSeq, levelFilter)
+            end)
+            if not ok or type(data) ~= 'table' then
+                return nil
+            end
+            return data.entries, data.lastSeq
+        end
+
+        CreateThread(function()
+            if sinceSeq == nil then
+                local _, lastSeq = fetchSince()
+                if lastSeq == nil then
+                    audit('logs-watch', ip, false, ('resource=%s has no dev_bridge_logger.lua installed'):format(targetResource))
+                    sendJson(res, 404, {
+                        error = ('resource "%s" has no mcp log export; copy dev_bridge_logger.lua into its server/ scripts'):format(targetResource),
+                    })
+                    return
+                end
+                sendJson(res, 200, { resource = targetResource, entries = {}, lastSeq = lastSeq })
+                return
+            end
+
+            local elapsed = 0
+            local pollIntervalMs = 250
+            while true do
+                local entries, lastSeq = fetchSince()
+                if lastSeq == nil then
+                    audit('logs-watch', ip, false, ('resource=%s has no dev_bridge_logger.lua installed'):format(targetResource))
+                    sendJson(res, 404, {
+                        error = ('resource "%s" has no mcp log export; copy dev_bridge_logger.lua into its server/ scripts'):format(targetResource),
+                    })
+                    return
+                end
+                if #entries > 0 then
+                    audit('logs-watch', ip, true, ('resource=%s new=%d'):format(targetResource, #entries))
+                    sendJson(res, 200, { resource = targetResource, entries = entries, lastSeq = lastSeq })
+                    return
+                end
+                if elapsed >= timeoutMs then
+                    sendJson(res, 200, { resource = targetResource, entries = {}, lastSeq = lastSeq, timedOut = true })
+                    return
+                end
+                Wait(pollIntervalMs)
+                elapsed = elapsed + pollIntervalMs
+            end
+        end)
+        return
+    end
+
+    if barePath == '/mcp/logs/clear' and req.method == 'POST' then
+        readBodyJson(req, function(payload, err)
+            if err then
+                sendJson(res, 400, { error = err })
+                return
+            end
+
+            local targetResource = payload.resource or GetCurrentResourceName()
+            if targetResource == GetCurrentResourceName() then
+                clearOwnLogs()
+                audit('logs-clear', ip, true, ('resource=%s'):format(targetResource))
+                sendJson(res, 200, { ok = true, resource = targetResource })
+                return
+            end
+
+            local ok = pcall(function()
+                return exports[targetResource]:mcp_clearLogs()
+            end)
+            audit('logs-clear', ip, ok, ('resource=%s'):format(targetResource))
+            if not ok then
+                sendJson(res, 404, {
+                    error = ('resource "%s" has no mcp log export; copy dev_bridge_logger.lua into its server/ scripts'):format(targetResource),
+                })
+                return
+            end
+            sendJson(res, 200, { ok = true, resource = targetResource })
+        end)
+        return
+    end
+
+    if barePath == '/mcp/resource/state' and req.method == 'GET' then
+        local params = parseQuery(query)
+        local targetResource = params.resource
+        if not targetResource or targetResource == '' then
+            sendJson(res, 400, { error = 'resource query parameter is required' })
+            return
+        end
+
+        local state = GetResourceState(targetResource)
+        audit('resource-state', ip, true, ('resource=%s state=%s'):format(targetResource, state))
+        sendJson(res, 200, { resource = targetResource, state = state })
         return
     end
 

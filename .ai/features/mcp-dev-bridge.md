@@ -23,9 +23,9 @@ for the approved decisions.
 ## Contracts
 - Events: `<resource>:mcp:giveItem(serverId, item, count)` — fired by the bridge, the resource under test implements it.
 - Callbacks: none.
-- Exports: `mcp_getLogs(lines, levelFilter)` from any resource carrying `dev_bridge_logger.lua`; `exports.oxmysql:executeSync` consumed read-only by the bridge itself when present.
+- Exports: `mcp_getLogs(lines, levelFilter)`, `mcp_getLogsSince(sinceSeq, levelFilter)`, `mcp_clearLogs()` from any resource carrying `dev_bridge_logger.lua`; `exports.oxmysql:executeSync` consumed read-only by the bridge itself when present.
 - State bags: none.
-- HTTP: `POST /mcp/restart`, `POST /mcp/agent/action`, `GET /mcp/logs`, `GET /mcp/players`, `GET /mcp/db/schema` on the `mcp_dev_bridge` resource, Bearer-token authenticated.
+- HTTP: `POST /mcp/restart`, `POST /mcp/agent/action`, `GET /mcp/logs`, `GET /mcp/logs/watch`, `POST /mcp/logs/clear`, `GET /mcp/resource/state`, `GET /mcp/players`, `GET /mcp/db/schema` on the `mcp_dev_bridge` resource, Bearer-token authenticated.
 
 ## Data
 - Database tables: none.

@@ -127,6 +127,23 @@ All endpoints require `Authorization: Bearer <mcp_token>`.
 - `GET /mcp/logs?resource=<name>&lines=20&level=error|warn|info` — `resource`
   defaults to the bridge itself; pass the name of a resource that has
   `dev_bridge_logger.lua` installed to read its logs instead.
+- `GET /mcp/logs/watch?resource=<name>&level=error&since=<seq>&timeoutMs=5000` —
+  long-polls (server-side, capped at 6000ms) for log lines newer than
+  `since` instead of the caller polling `/mcp/logs` in a loop. Call once
+  with no `since` to get a starting cursor (`lastSeq` in the response, no
+  wait), then call again passing that value as `since` to actually wait.
+  Repeated identical messages are collapsed into one entry with a
+  `repeatCount` so a noisy loop doesn't flood the response. Behind the
+  `watch_resource_logs` MCP tool.
+- `POST /mcp/logs/clear` — body `{ "resource": "my_resource" }` (defaults
+  to the bridge itself). Clears that resource's log ring buffer for a
+  clean baseline before a test run. Behind `clear_resource_logs`.
+- `GET /mcp/resource/state?resource=<name>` — returns
+  `{ resource, state }` from `GetResourceState`, for any resource on the
+  server (no `dev_bridge_logger.lua` required). Use after
+  `auto_build_and_restart` to confirm the resource actually started
+  rather than trusting that the restart request was merely accepted.
+  Behind `get_resource_state`.
 - `GET /mcp/players` — connected players as `{ players: [{ serverId, name, coords }] }`.
   Use this (via the `list_players` MCP tool) to find a `serverId` before a
   `teleport`/`give_item` agent action or `run_in_game_test`.

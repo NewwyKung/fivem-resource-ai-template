@@ -124,7 +124,10 @@ export const FXSERVER_API_KEY = process.env.FXSERVER_API_KEY || "";
 
 export class BridgeError extends Error {}
 
-export async function callBridge(path: string, options: { method?: string; body?: unknown } = {}): Promise<any> {
+export async function callBridge(
+  path: string,
+  options: { method?: string; body?: unknown; timeoutMs?: number } = {}
+): Promise<any> {
   if (!FXSERVER_API_KEY) {
     throw new BridgeError(
       "FXSERVER_API_KEY is not set. Set it in .cursor/mcp.json's env block; it must match the mcp_token convar on the FXServer."
@@ -132,7 +135,7 @@ export async function callBridge(path: string, options: { method?: string; body?
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 8000);
 
   try {
     const res = await fetch(`${FXSERVER_URL}${path}`, {

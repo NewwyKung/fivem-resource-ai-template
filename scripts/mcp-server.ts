@@ -57,6 +57,9 @@ server.registerTool(
             "get_current_context",
             "auto_build_and_restart",
             "read_resource_logs",
+            "watch_resource_logs",
+            "clear_resource_logs",
+            "get_resource_state",
             "list_players",
             "run_in_game_test",
             ...(hasDatabase ? ["inspect_db_schema"] : []),
@@ -113,6 +116,95 @@ server.registerTool(
       return textResult(truncate(formatted));
     } catch (err) {
       return textResult(`could not read logs: ${(err as Error).message}`);
+    }
+  }
+);
+
+server.registerTool(
+  "watch_resource_logs",
+  {
+    title: "Watch resource logs for new errors",
+    description:
+      "Long-polls the FXServer dev bridge for new log lines past a cursor, instead of you polling read_resource_logs in a loop. " +
+      "Call once with no `since` to get a starting cursor (`lastSeq`), then call again passing that value as `since` to actually " +
+      "wait (up to `timeoutMs`, capped at 6000ms server-side) for a matching new line. Repeats of the same message are " +
+      "collapsed server-side into one entry with a repeatCount. Loop this call (reusing the returned `lastSeq` as the next " +
+      "`since`) for continuous monitoring across multiple calls.",
+    inputSchema: {
+      resource: z.string().optional(),
+      level: z.enum(["error", "warn", "info"]).optional(),
+      since: z.number().int().optional(),
+      timeoutMs: z.number().int().min(0).max(6000).optional(),
+    },
+  },
+  async ({ resource, level, since, timeoutMs }) => {
+    const targetResource = resource || cfg.resourceName || ctx.resourceName;
+    const query = new URLSearchParams({
+      resource: targetResource,
+      level: level || "error",
+      ...(since !== undefined ? { since: String(since) } : {}),
+      ...(timeoutMs !== undefined ? { timeoutMs: String(timeoutMs) } : {}),
+    });
+
+    try {
+      const result = await callBridge(`/mcp/logs/watch?${query.toString()}`, { timeoutMs: 7000 });
+      const entries = (result.entries || []) as Array<{ level: string; message: string; repeatCount?: number }>;
+      if (entries.length === 0) {
+        return textResult(
+          JSON.stringify({ resource: targetResource, lastSeq: result.lastSeq, timedOut: Boolean(result.timedOut), entries: [] })
+        );
+      }
+      const formatted = entries
+        .map((entry) => `[${entry.level}] ${entry.message}${entry.repeatCount ? ` (repeated ${entry.repeatCount}x)` : ""}`)
+        .join("\n");
+      return textResult(truncate(`lastSeq=${result.lastSeq}\n${formatted}`));
+    } catch (err) {
+      return textResult(`could not watch logs: ${(err as Error).message}`);
+    }
+  }
+);
+
+server.registerTool(
+  "clear_resource_logs",
+  {
+    title: "Clear resource logs",
+    description:
+      "Clears the FXServer dev bridge's captured log ring buffer for this resource (or another named resource with " +
+      "dev_bridge_logger.lua installed). Use it to get a clean baseline before a test run instead of scrolling past old lines.",
+    inputSchema: {
+      resource: z.string().optional(),
+    },
+  },
+  async ({ resource }) => {
+    const targetResource = resource || cfg.resourceName || ctx.resourceName;
+    try {
+      await callBridge("/mcp/logs/clear", { method: "POST", body: { resource: targetResource } });
+      return textResult(`cleared logs for ${targetResource}`);
+    } catch (err) {
+      return textResult(`could not clear logs: ${(err as Error).message}`);
+    }
+  }
+);
+
+server.registerTool(
+  "get_resource_state",
+  {
+    title: "Get resource state",
+    description:
+      "Reads the actual FXServer resource state (started/stopped/starting/...) via GetResourceState through the dev bridge. " +
+      "Call this after auto_build_and_restart to confirm the resource is actually running rather than trusting that the " +
+      "restart request was merely accepted.",
+    inputSchema: {
+      resource: z.string().optional(),
+    },
+  },
+  async ({ resource }) => {
+    const targetResource = resource || cfg.resourceName || ctx.resourceName;
+    try {
+      const result = await callBridge(`/mcp/resource/state?${new URLSearchParams({ resource: targetResource }).toString()}`);
+      return textResult(`${targetResource}: ${result.state}`);
+    } catch (err) {
+      return textResult(`could not read resource state: ${(err as Error).message}`);
     }
   }
 );

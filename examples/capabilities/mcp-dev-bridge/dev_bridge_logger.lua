@@ -14,6 +14,7 @@ end
 
 local LOG_BUFFER = {}
 local LOG_BUFFER_MAX = 300
+local LOG_SEQ = 0
 local rawPrint = print
 
 local function levelOf(message)
@@ -26,6 +27,23 @@ local function levelOf(message)
     return 'info'
 end
 
+-- Collapses immediate repeats (a log line spamming every tick) into one
+-- entry with a repeatCount instead of flooding the ring buffer/watchers.
+local function pushLog(level, message)
+    local last = LOG_BUFFER[#LOG_BUFFER]
+    if last and last.level == level and last.message == message then
+        last.repeatCount = (last.repeatCount or 1) + 1
+        last.ts = os.time()
+        return
+    end
+
+    LOG_SEQ = LOG_SEQ + 1
+    LOG_BUFFER[#LOG_BUFFER + 1] = { seq = LOG_SEQ, ts = os.time(), level = level, message = message }
+    if #LOG_BUFFER > LOG_BUFFER_MAX then
+        table.remove(LOG_BUFFER, 1)
+    end
+end
+
 print = function(...)
     local parts = {}
     for i = 1, select('#', ...) do
@@ -33,10 +51,7 @@ print = function(...)
     end
     local message = table.concat(parts, '\t')
 
-    LOG_BUFFER[#LOG_BUFFER + 1] = { ts = os.time(), level = levelOf(message), message = message }
-    if #LOG_BUFFER > LOG_BUFFER_MAX then
-        table.remove(LOG_BUFFER, 1)
-    end
+    pushLog(levelOf(message), message)
 
     rawPrint(...)
 end
@@ -54,4 +69,25 @@ exports('mcp_getLogs', function(lines, levelFilter)
         end
     end
     return out
+end)
+
+-- Used by mcp_dev_bridge's /mcp/logs/watch long-poll. sinceSeq == nil just
+-- reports the current tip so a caller can establish a starting cursor.
+exports('mcp_getLogsSince', function(sinceSeq, levelFilter)
+    sinceSeq = tonumber(sinceSeq)
+    local out = {}
+    if sinceSeq == nil then
+        return { entries = out, lastSeq = LOG_SEQ }
+    end
+    for _, entry in ipairs(LOG_BUFFER) do
+        if entry.seq > sinceSeq and (not levelFilter or levelFilter == '' or entry.level == levelFilter) then
+            out[#out + 1] = entry
+        end
+    end
+    return { entries = out, lastSeq = LOG_SEQ }
+end)
+
+exports('mcp_clearLogs', function()
+    LOG_BUFFER = {}
+    return true
 end)
