@@ -1,7 +1,7 @@
 # Server Environment Profile
 
-Status: Unconfigured
-Last updated: —
+Status: Partially configured
+Last updated: 2026-09-11
 
 This file stores confirmed server-wide choices so AI agents do not ask the same integration questions for every feature. Update only from user-confirmed information. Never store secrets.
 
@@ -10,7 +10,7 @@ This file stores confirmed server-wide choices so AI agents do not ask the same 
 | Setting | Selected value | Status | Notes |
 |---|---|---|---|
 | Framework | unset | unresolved | `standalone`, `esx`, `qbcore`, `qbox`, or custom |
-| Database driver | unset | unresolved | `none`, `oxmysql`, or custom |
+| Database driver | oxmysql | confirmed | Confirmed for [mcp-dev-bridge](../../examples/capabilities/mcp-dev-bridge/README.md)'s read-only `inspect_db_schema`/`/mcp/db/schema` (SHOW TABLES/DESCRIBE only). No runtime CRUD adapter has been created for it — do not assume one exists for other features without confirming scope. |
 | Shared library | unset | unresolved | e.g. `ox_lib`, custom, or none |
 
 ## Capabilities

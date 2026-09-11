@@ -93,7 +93,7 @@ optional `.mcp-config.json` so concurrent per-resource chats stay scoped.
 | Placement | Opt-in `examples/capabilities/mcp-dev-bridge/` | Embed `dev_bridge.lua` directly in `resource/server/` | Matches existing i18n/runtime-tests pattern; keeps dev-only HTTP surface out of every generated resource's default manifest |
 | `/mcp/agent/action` scope | Whitelisted actions only (teleport, trigger_event, give_item, restart) | Arbitrary client/server command execution as originally specified | Arbitrary command execution over HTTP is effectively RCE on the FXServer if the token/convar gate is ever misconfigured; whitelist keeps the blast radius bounded to actions the resource itself already exposes handlers for |
 | Bridge topology | Standalone dev-only resource + opt-in per-resource logger shim | Single file embedded per-resource (original literal spec) | Standalone resource matches the runtime-tests convention, survives target-resource restarts, and serves multiple resources from one instance; the shim solves per-resource log capture via a normal FXServer `export` instead of relying on inaccessible full-console capture |
-| Database inspection | Reads a locally configured `.sql` schema file only | Live oxmysql/database connection | `environment.md` has no database driver confirmed; a live DB bridge would be a speculative provider bridge, which the repo's core invariants forbid |
+| Database inspection | Live read-only `SHOW TABLES`/`DESCRIBE` via oxmysql when `database.driver` is `"oxmysql"`; local `.sql` file otherwise | A full CRUD/query bridge; staying file-only forever | User confirmed oxmysql as the resource's database driver when asked; scope was kept to read-only metadata (no caller-supplied query, no write path) so this doesn't become a general-purpose DB adapter the repo's invariants would call speculative |
 
 ## Assumptions
 - Consumers running this pack copy the two Lua files into their own
@@ -106,6 +106,36 @@ optional `.mcp-config.json` so concurrent per-resource chats stay scoped.
 ## Unresolved questions
 - None blocking; `check:lua`/LuaLS verification of the two new Lua files is
   outstanding because no Lua toolchain was available in this environment.
+
+## Follow-up: list_players, Lua lint gate, watch mode, live oxmysql schema (2026-09-11)
+Added on user request ("ทำไว้ให้ครบเลย" after being offered these as optional
+follow-ups):
+- `GET /mcp/players` + `list_players` MCP tool — connected players
+  (serverId/name/coords), so `teleport`/`give_item`/`run_in_game_test`
+  don't require guessing a serverId.
+- `auto_build_and_restart` (and the new `scripts/dev-watch.ts` /
+  `npm run mcp:watch`) now also run a LuaLS `--checklevel=Error` pass over
+  the resource before restarting, reusing the same `LUALS_BIN` convention as
+  `npm run check:lua`. Skips gracefully (does not block restart) when LuaLS
+  isn't installed, same degrade pattern as Playwright for NUI automation.
+- `scripts/lib/mcp-shared.ts` extracted so the MCP server and the new watch
+  script share context detection, the bridge client, and the build/lint/
+  restart sequence instead of duplicating it.
+- `scripts/dev-watch.ts` watches the resource (and `ui/`, if present) and
+  re-runs build -> lint -> restart on change. Caught and fixed during
+  testing: an initial version watched `resource/html` (this template's
+  generated NUI output, per `.gitignore`) and self-triggered forever every
+  time a build wrote there; fixed by excluding generated/dependency
+  directories (`html`, `node_modules`, `.git`, `dist`, `build`,
+  `.svelte-kit`, `release`) from the watch trigger.
+- `GET /mcp/db/schema` + updated `inspect_db_schema` — live, read-only
+  `SHOW TABLES`/`DESCRIBE` introspection via `exports.oxmysql`, gated on
+  `database.driver === "oxmysql"` in `.mcp-config.json` and on `oxmysql`
+  actually being `started` on the server (501 otherwise). No caller-supplied
+  query ever reaches the database — only `SHOW TABLES` and `DESCRIBE` run,
+  so there is no write path and no SQL injection surface. This required
+  confirming a database driver first (see Decisions); user confirmed
+  `oxmysql` when asked.
 
 ## Follow-up: dynamic tool registration (2026-09-11)
 Initial delivery registered all 6 MCP tools unconditionally; only their

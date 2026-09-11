@@ -8,179 +8,22 @@
  * resource workspaces at once (each its own editor/chat session) never
  * crosses wires between them.
  */
-import { existsSync, readFileSync, readdirSync, statSync, mkdtempSync } from "node:fs";
-import { join, dirname, basename, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, mkdtempSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-
-// ---------------------------------------------------------------------
-// Resource context detection
-// ---------------------------------------------------------------------
-
-interface ResourceContext {
-  resourceName: string;
-  resourceRoot: string;
-  workingDirectory: string;
-  resourceType: "pure-lua" | "nui-svelte" | "nui-react" | "nui-unknown";
-  uiDir: string | null;
-}
-
-function findFxmanifest(root: string): string | null {
-  const direct = [join(root, "fxmanifest.lua"), join(root, "resource", "fxmanifest.lua")];
-  for (const candidate of direct) {
-    if (existsSync(candidate)) return candidate;
-  }
-
-  try {
-    for (const entry of readdirSync(root)) {
-      const full = join(root, entry);
-      if (statSync(full).isDirectory()) {
-        const candidate = join(full, "fxmanifest.lua");
-        if (existsSync(candidate)) return candidate;
-      }
-    }
-  } catch {
-    // root not readable; fall through to null
-  }
-  return null;
-}
-
-function parseResourceName(fxmanifestPath: string): string {
-  const content = readFileSync(fxmanifestPath, "utf8");
-  const match = content.match(/^\s*name\s+'([^']+)'/m);
-  return match ? match[1] : basename(dirname(fxmanifestPath));
-}
-
-function detectUiDir(resourceRoot: string): string | null {
-  const candidates = [join(resourceRoot, "ui"), join(dirname(resourceRoot), "ui")];
-  for (const candidate of candidates) {
-    if (existsSync(join(candidate, "package.json"))) return candidate;
-  }
-  return null;
-}
-
-function detectResourceType(uiDir: string | null): ResourceContext["resourceType"] {
-  if (!uiDir) return "pure-lua";
-  try {
-    const pkg = JSON.parse(readFileSync(join(uiDir, "package.json"), "utf8"));
-    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-    if (deps.svelte) return "nui-svelte";
-    if (deps.react) return "nui-react";
-  } catch {
-    // unreadable/invalid package.json; report unknown rather than guessing
-  }
-  return "nui-unknown";
-}
-
-function loadContext(cwd: string): ResourceContext {
-  const fxmanifestPath = findFxmanifest(cwd);
-  const resourceRoot = fxmanifestPath ? dirname(fxmanifestPath) : cwd;
-  const uiDir = detectUiDir(resourceRoot);
-  return {
-    resourceName: fxmanifestPath ? parseResourceName(fxmanifestPath) : basename(cwd),
-    resourceRoot,
-    workingDirectory: cwd,
-    resourceType: detectResourceType(uiDir),
-    uiDir,
-  };
-}
-
-interface McpConfig {
-  resourceName?: string;
-  nui?: { enabled?: boolean; devUrl?: string };
-  runtimeTests?: { enabled?: boolean };
-  database?: { driver?: string; schemaFile?: string };
-}
-
-function loadMcpConfig(cwd: string): McpConfig {
-  const configPath = join(cwd, ".mcp-config.json");
-  if (!existsSync(configPath)) return {};
-  try {
-    return JSON.parse(readFileSync(configPath, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
-// ---------------------------------------------------------------------
-// Token-economy helpers
-// ---------------------------------------------------------------------
-
-function truncate(text: string, maxLines = 50, maxChars = 4000): string {
-  const allLines = text.split("\n");
-  const lines = allLines.slice(0, maxLines);
-  let out = lines.join("\n");
-  if (out.length > maxChars) out = `${out.slice(0, maxChars)}\n... (truncated)`;
-  if (allLines.length > maxLines) out += `\n... (truncated, showing first ${maxLines} of ${allLines.length} lines)`;
-  return out;
-}
-
-function textResult(text: string) {
-  return { content: [{ type: "text" as const, text }] };
-}
-
-// ---------------------------------------------------------------------
-// FXServer dev bridge client (see examples/capabilities/mcp-dev-bridge)
-// ---------------------------------------------------------------------
-
-const FXSERVER_URL = (process.env.FXSERVER_URL || "http://127.0.0.1:30120").replace(/\/$/, "");
-const FXSERVER_API_KEY = process.env.FXSERVER_API_KEY || "";
-
-class BridgeError extends Error {}
-
-async function callBridge(path: string, options: { method?: string; body?: unknown } = {}): Promise<any> {
-  if (!FXSERVER_API_KEY) {
-    throw new BridgeError(
-      "FXSERVER_API_KEY is not set. Set it in .cursor/mcp.json's env block; it must match the mcp_token convar on the FXServer."
-    );
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const res = await fetch(`${FXSERVER_URL}${path}`, {
-      method: options.method || "GET",
-      headers: {
-        Authorization: `Bearer ${FXSERVER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    });
-
-    const raw = await res.text();
-    let body: any;
-    try {
-      body = raw ? JSON.parse(raw) : {};
-    } catch {
-      body = { raw: truncate(raw, 20, 2000) };
-    }
-
-    if (!res.ok) {
-      throw new BridgeError(`bridge responded ${res.status}: ${JSON.stringify(body)}`);
-    }
-    return body;
-  } catch (err) {
-    if (err instanceof BridgeError) throw err;
-    throw new BridgeError(`could not reach FXServer dev bridge at ${FXSERVER_URL}: ${(err as Error).message}`);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function runCommand(cmd: string, args: string[], cwd: string) {
-  const result = spawnSync(cmd, args, { cwd, encoding: "utf8", shell: process.platform === "win32" });
-  const combined = `${result.stdout || ""}${result.stderr || ""}`.trim() || "(no output)";
-  return { ok: result.status === 0, output: truncate(combined) };
-}
-
-// ---------------------------------------------------------------------
-// MCP server + tools
-// ---------------------------------------------------------------------
+import {
+  loadContext,
+  loadMcpConfig,
+  truncate,
+  textResult,
+  callBridge,
+  buildAndRestart,
+  FXSERVER_URL,
+  FXSERVER_API_KEY,
+} from "./lib/mcp-shared.js";
 
 const server = new McpServer({ name: "fivem-auto-dev", version: "0.1.0" });
 
@@ -214,6 +57,7 @@ server.registerTool(
             "get_current_context",
             "auto_build_and_restart",
             "read_resource_logs",
+            "list_players",
             "run_in_game_test",
             ...(hasDatabase ? ["inspect_db_schema"] : []),
             ...(hasNui ? ["run_nui_automation"] : []),
@@ -231,35 +75,14 @@ server.registerTool(
 server.registerTool(
   "auto_build_and_restart",
   {
-    title: "Build, type-check, and restart",
+    title: "Build, lint, type-check, and restart",
     description:
-      "Builds the NUI (if present), runs tsc --noEmit, and only if both pass sends /mcp/restart to the FXServer dev bridge for this resource. Aborts before contacting the server on any build or type error.",
+      "Builds the NUI (if present) and runs tsc --noEmit, runs a LuaLS error-level check over the resource (skipped gracefully if LuaLS isn't installed), and only if everything passes sends /mcp/restart to the FXServer dev bridge. Aborts before contacting the server on any build, type, or Lua error.",
     inputSchema: {},
   },
   async () => {
-    const resourceName = cfg.resourceName || ctx.resourceName;
-
-    if (ctx.uiDir) {
-      const build = runCommand("npm", ["run", "build"], ctx.uiDir);
-      if (!build.ok) {
-        return textResult(`build failed, restart aborted:\n${build.output}`);
-      }
-
-      const tsconfigPath = join(ctx.uiDir, "tsconfig.json");
-      if (existsSync(tsconfigPath)) {
-        const typecheck = runCommand("npx", ["tsc", "--noEmit", "--project", tsconfigPath], ctx.uiDir);
-        if (!typecheck.ok) {
-          return textResult(`type check failed, restart aborted:\n${typecheck.output}`);
-        }
-      }
-    }
-
-    try {
-      const result = await callBridge("/mcp/restart", { method: "POST", body: { resource: resourceName } });
-      return textResult(`restart ok: ${JSON.stringify(result)}`);
-    } catch (err) {
-      return textResult(`restart failed: ${(err as Error).message}`);
-    }
+    const result = await buildAndRestart(ctx, cfg);
+    return textResult(result.summary);
   }
 );
 
@@ -294,21 +117,56 @@ server.registerTool(
   }
 );
 
-// Only registered when .mcp-config.json declares a database — a resource
-// with no schema file configured never sees this tool at all, rather than
-// seeing it and getting a "not configured" message back.
+server.registerTool(
+  "list_players",
+  {
+    title: "List connected players",
+    description:
+      "Lists players currently connected to the FXServer (serverId, name, coords) via the dev bridge. Use this to find a serverId before calling run_in_game_test or triggering an agent action against a real test player.",
+    inputSchema: {},
+  },
+  async () => {
+    try {
+      const result = await callBridge("/mcp/players");
+      const players = (result.players || []) as Array<{ serverId: string; name: string }>;
+      if (players.length === 0) {
+        return textResult("no players connected");
+      }
+      return textResult(truncate(JSON.stringify(players, null, 2), 80, 4000));
+    } catch (err) {
+      return textResult(`could not list players: ${(err as Error).message}`);
+    }
+  }
+);
+
 if (hasDatabase) {
   server.registerTool(
     "inspect_db_schema",
     {
       title: "Inspect database schema",
       description:
-        "Reads the schema file declared in .mcp-config.json's database.schemaFile. Does not connect to a live database and does not assume oxmysql or any provider — point database.schemaFile at your resource's own .sql schema/migration file.",
+        "For database.driver \"oxmysql\": queries live table/column names via the dev bridge's read-only SHOW TABLES/DESCRIBE endpoint (never a write, never a caller-supplied query). Otherwise reads the local .sql file at database.schemaFile. Never assumes a provider beyond what .mcp-config.json declares.",
       inputSchema: {},
     },
     async () => {
+      if (cfg.database?.driver === "oxmysql") {
+        try {
+          const result = await callBridge("/mcp/db/schema");
+          const tables = (result.tables || []) as Array<{ table: string; columns?: Array<{ Field: string; Type: string }> }>;
+          if (tables.length === 0) return textResult("(no tables)");
+          const formatted = tables
+            .map((t) => `${t.table}: ${(t.columns || []).map((c) => `${c.Field} ${c.Type}`).join(", ")}`)
+            .join("\n");
+          return textResult(truncate(formatted, 80, 6000));
+        } catch (err) {
+          return textResult(`could not query live schema: ${(err as Error).message}`);
+        }
+      }
+
       if (!cfg.database?.schemaFile) {
-        return textResult("database.driver is set but database.schemaFile is missing in .mcp-config.json.");
+        return textResult(
+          "database.driver is not \"oxmysql\" and database.schemaFile is missing in .mcp-config.json; nothing to inspect."
+        );
       }
 
       const schemaPath = resolve(process.cwd(), cfg.database.schemaFile);
@@ -321,9 +179,6 @@ if (hasDatabase) {
   );
 }
 
-// Only registered for a resource that actually has a UI: resourceType
-// detected a package.json with svelte/react in ui/, or .mcp-config.json
-// explicitly set nui.enabled. A pure-Lua resource never sees this tool.
 if (hasNui) {
   server.registerTool(
     "run_nui_automation",

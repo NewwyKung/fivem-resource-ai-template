@@ -21,7 +21,8 @@
     "check:ui": "npm run check --prefix resource/ui",
     "test:ui-assets": "node tests/ui/check-ui-assets.integration.mjs",
     "test:nui": "node tests/ui/nui-bridge.integration.mjs",
-    "mcp": "tsx scripts/mcp-server.ts"
+    "mcp": "tsx scripts/mcp-server.ts",
+    "mcp:watch": "tsx scripts/dev-watch.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

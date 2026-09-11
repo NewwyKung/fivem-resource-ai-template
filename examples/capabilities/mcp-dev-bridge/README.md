@@ -22,8 +22,8 @@ user only wants a one-off manual test.
 ## What's in this pack
 
 - `mcp_dev_bridge/` — a standalone, dev-only FXServer resource. It owns the
-  HTTP control endpoints (`/mcp/restart`, `/mcp/agent/action`, `/mcp/logs`)
-  and never enters a production manifest, mirroring the
+  HTTP control endpoints (`/mcp/restart`, `/mcp/agent/action`, `/mcp/logs`,
+  `/mcp/players`) and never enters a production manifest, mirroring the
   [runtime-tests](../runtime-tests/README.md) pattern.
 - `dev_bridge_logger.lua` — a small shim copied into the *target* resource
   (the one under active development) so `mcp_dev_bridge` can read that
@@ -83,6 +83,10 @@ so a resource is never silently instrumented.
    the MCP server standalone, or let Cursor/Claude Desktop launch it via
    `.cursor/mcp.json` (see that file's comments for the token you must fill
    in — it must match `mcp_token` above).
+6. Optional: `npm run mcp:watch` runs the same build -> lint -> restart loop
+   as `auto_build_and_restart`, automatically, on every file change in the
+   resource (and its `ui/`, if present) — for when you'd rather not have the
+   agent call the tool manually after each edit.
 
 ## Security notes
 
@@ -102,6 +106,9 @@ so a resource is never silently instrumented.
   `<resource>:mcp:giveItem` and expects the resource under test to register
   a handler if it wants this capability — matching this template's rule
   against inventing framework bridges speculatively.
+- `/mcp/db/schema` only ever executes `SHOW TABLES` and `DESCRIBE` — no
+  caller-supplied query, no write/update/delete path exists in the bridge at
+  all. It no-ops with a 501 when `oxmysql` isn't running.
 - Every action is logged to console with actor IP, action name, and result
   for audit.
 - Remove `mcp_dev_bridge` and every `dev_bridge_logger.lua` copy from any
@@ -120,10 +127,22 @@ All endpoints require `Authorization: Bearer <mcp_token>`.
 - `GET /mcp/logs?resource=<name>&lines=20&level=error|warn|info` — `resource`
   defaults to the bridge itself; pass the name of a resource that has
   `dev_bridge_logger.lua` installed to read its logs instead.
+- `GET /mcp/players` — connected players as `{ players: [{ serverId, name, coords }] }`.
+  Use this (via the `list_players` MCP tool) to find a `serverId` before a
+  `teleport`/`give_item` agent action or `run_in_game_test`.
+- `GET /mcp/db/schema` — only when `oxmysql` is running on the server;
+  returns `{ tables: [{ table, columns }] }` from a live `SHOW TABLES` +
+  `DESCRIBE` per table. Read-only: no caller-supplied query ever reaches
+  the database, so there is no write path and no SQL injection surface.
+  501 if `oxmysql` isn't started. Used by `inspect_db_schema` when
+  `.mcp-config.json`'s `database.driver` is `"oxmysql"`.
 
 ## Token-efficient AI rule
 
 The MCP server truncates every tool response to a short summary (build
 errors, last N log lines, pass/fail) instead of returning raw JSON, stdout,
-or HTML. Local `tsc --noEmit` runs before any restart request is sent, so a
-syntax error never reaches the FXServer.
+or HTML. `auto_build_and_restart` (and `npm run mcp:watch`) run the NUI
+build, `tsc --noEmit`, and a LuaLS error-level check locally before any
+restart request is sent, so a build, type, or Lua error never reaches the
+FXServer. The Lua check is skipped (not a hard failure) when LuaLS isn't
+installed — set `LUALS_BIN` to enable it, same as `npm run check:lua`.

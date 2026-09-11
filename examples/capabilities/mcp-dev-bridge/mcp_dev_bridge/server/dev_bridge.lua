@@ -251,6 +251,63 @@ SetHttpHandler(function(req, res)
         return
     end
 
+    if barePath == '/mcp/db/schema' and req.method == 'GET' then
+        -- Read-only introspection: only ever runs SHOW TABLES / DESCRIBE,
+        -- never a caller-supplied query, so there is no SQL injection
+        -- surface and no write/delete/update path exists here at all.
+        if GetResourceState('oxmysql') ~= 'started' then
+            sendJson(res, 501, { error = 'oxmysql is not running on this server; live schema introspection is unavailable' })
+            return
+        end
+
+        local okTables, tableRows = pcall(function()
+            return exports.oxmysql:executeSync('SHOW TABLES')
+        end)
+        if not okTables or type(tableRows) ~= 'table' then
+            audit('db-schema', ip, false, 'SHOW TABLES failed')
+            sendJson(res, 500, { error = 'SHOW TABLES query failed' })
+            return
+        end
+
+        local schema = {}
+        for _, row in ipairs(tableRows) do
+            local tableName
+            for _, value in pairs(row) do
+                tableName = value
+                break
+            end
+            -- Table names come from SHOW TABLES itself, not caller input,
+            -- but this is still validated before interpolation as defense
+            -- in depth (identifiers cannot be bound as query parameters).
+            if type(tableName) == 'string' and tableName:match('^[%w_]+$') then
+                local okDescribe, columns = pcall(function()
+                    return exports.oxmysql:executeSync('DESCRIBE `' .. tableName .. '`')
+                end)
+                schema[#schema + 1] = { table = tableName, columns = okDescribe and columns or nil }
+            end
+        end
+
+        audit('db-schema', ip, true, ('tables=%d'):format(#schema))
+        sendJson(res, 200, { tables = schema })
+        return
+    end
+
+    if barePath == '/mcp/players' and req.method == 'GET' then
+        local players = {}
+        for _, serverId in ipairs(GetPlayers()) do
+            local ped = GetPlayerPed(serverId)
+            local coords = ped and ped ~= 0 and GetEntityCoords(ped) or nil
+            players[#players + 1] = {
+                serverId = serverId,
+                name = GetPlayerName(serverId),
+                coords = coords and { x = coords.x, y = coords.y, z = coords.z } or nil,
+            }
+        end
+        audit('players', ip, true, ('count=%d'):format(#players))
+        sendJson(res, 200, { players = players })
+        return
+    end
+
     if barePath == '/mcp/restart' and req.method == 'POST' then
         readBodyJson(req, function(payload, err)
             if err then

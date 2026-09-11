@@ -14,6 +14,9 @@
   },
 
   "database": {
-    "driver": "none"
+    "driver": "none",
+    "_comment_driver": "\"oxmysql\" enables live, read-only schema introspection (SHOW TABLES/DESCRIBE via the dev bridge) instead of the schemaFile fallback below.",
+    "schemaFile": null,
+    "_comment_schemaFile": "Used only when driver is not \"oxmysql\": path to a local .sql schema/migration file to read instead."
   }
 }
