@@ -18,6 +18,7 @@ Load only rules relevant to the current task.
 | Lua and NUI translations | `localization.md` |
 | Cross-cutting implementation/review gate | `engineering-quality.md` |
 | Supplied guides and volatile external claims | `source-trust.md` |
+| Personal/team coding style preferences (optional; may not exist yet) | `dev-style.md` |
 
 Do not load all rule files by default.
 

@@ -53,7 +53,7 @@ Always apply `.ai/CONTEXT_BUDGET.md`.
 Choose one primary workflow from `.ai/skills/INDEX.md`; do not load every workflow referenced by an adapter.
 
 Read only what the task needs:
-- Lua/FiveM: `.ai/rules/fivem.md`, `.ai/rules/lua.md`
+- Lua/FiveM: `.ai/rules/fivem.md`, `.ai/rules/lua.md`, plus `.ai/rules/dev-style.md` when present (compiled from `.ai/memory/dev-style/` via `.ai/skills/compile-dev-style/SKILL.md`)
 - Config/modules: approved ADRs under `docs/decisions/`
 - Environment/integrations: `.ai/memory/environment.md`, `integrations.json`, `.ai/rules/integrations.md`, selected provider profile only
 - Database boundary: `.ai/examples/database-port/README.md` only when persistence is required

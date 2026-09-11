@@ -24,6 +24,7 @@ Use `.ai/work/current-task.md` for multi-step or cross-model work. The packet sh
 | Refactor an existing feature or boundary without changing behavior | `refactor-feature/SKILL.md` |
 | Review security and fault cases | `review-security/SKILL.md` |
 | Prepare production release | `release-resource/SKILL.md` |
+| Compile freeform dev-style notes into a compact rule file | `compile-dev-style/SKILL.md` |
 
 External UI tools and design packs are optional. Read `.ai/matrices/ui-tool-routing.json` only when one is explicitly selected or the current phase cannot resolve a material design decision.
 
