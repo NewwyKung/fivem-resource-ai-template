@@ -4,6 +4,13 @@ All notable public changes to this project are documented here. The project foll
 
 ## [Unreleased]
 
+### Planned
+
+- Collect Windows and Linux FXServer smoke-test evidence.
+- Refine onboarding based on Public Preview feedback.
+
+## [0.3.0] - 2026-09-12
+
 ### Added
 
 - Optional MCP dev bridge (`examples/capabilities/mcp-dev-bridge/`): a whitelisted-action-only FXServer HTTP bridge and a context-aware MCP server (`npm run mcp`) closing the write → build → restart → log-analysis loop, with per-resource dynamic tool registration, long-poll log watching, live read-only `oxmysql` schema introspection, and an optional file-watch loop (`npm run mcp:watch`).
@@ -14,11 +21,6 @@ All notable public changes to this project are documented here. The project foll
 ### Fixed
 
 - Corrected the MCP dev bridge's HTTP client to call through FXServer's `/<resourceName>/<path>` routing prefix for `SetHttpHandler` (a bare path 404s with FXServer's own router, not the bridge's), and documented the ACE grants (`command.start`/`command.stop`, not just `command.restart`) a resource needs before `ExecuteCommand('restart ...')` has any effect — both found and fixed during a real deployment.
-
-### Planned
-
-- Collect Windows and Linux FXServer smoke-test evidence.
-- Refine onboarding based on Public Preview feedback.
 
 ## [0.2.0] - 2026-08-29
 
