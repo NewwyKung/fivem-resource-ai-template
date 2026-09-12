@@ -4,6 +4,17 @@ All notable public changes to this project are documented here. The project foll
 
 ## [Unreleased]
 
+### Added
+
+- Optional MCP dev bridge (`examples/capabilities/mcp-dev-bridge/`): a whitelisted-action-only FXServer HTTP bridge and a context-aware MCP server (`npm run mcp`) closing the write → build → restart → log-analysis loop, with per-resource dynamic tool registration, long-poll log watching, live read-only `oxmysql` schema introspection, and an optional file-watch loop (`npm run mcp:watch`).
+- `npm run mcp:init` (`.ai/skills/init-mcp-bridge/SKILL.md`) to check what's already installed against a real FXServer and install only what's missing, verified against a real production deployment (see Fixed).
+- `npm run sync:template` to pull later template-owned changes into a resource already cloned from this template, without touching the resource's own game code or confirmed environment/requirements memory; `--list-only` plus `.ai/skills/sync-template/SKILL.md` let an AI agent decide what's safe to pull in.
+- `.ai/skills/compile-dev-style/SKILL.md`: compiles a developer's freeform style/workflow notes (`.ai/memory/dev-style/`) into a compact `.ai/rules/dev-style.md` rule file routine tasks actually load.
+
+### Fixed
+
+- Corrected the MCP dev bridge's HTTP client to call through FXServer's `/<resourceName>/<path>` routing prefix for `SetHttpHandler` (a bare path 404s with FXServer's own router, not the bridge's), and documented the ACE grants (`command.start`/`command.stop`, not just `command.restart`) a resource needs before `ExecuteCommand('restart ...')` has any effect — both found and fixed during a real deployment.
+
 ### Planned
 
 - Collect Windows and Linux FXServer smoke-test evidence.

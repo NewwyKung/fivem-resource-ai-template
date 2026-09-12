@@ -26,6 +26,8 @@ It is not a drop-in gameplay resource, a replacement for testing on FXServer, or
 - Small, task-specific AI context instead of loading the entire repository.
 - Secret scanning, schema validation, integration tests, LuaLS support, and release packaging.
 - Cross-platform development-resource linking through Node.js, with a guarded PowerShell helper retained for Windows.
+- Optional AI dev-loop: an FXServer HTTP bridge plus an MCP server for build → restart → log-analysis automation, with an install/check command for setting it up against a real server.
+- A sync command for pulling later template updates into a resource already cloned from it, and a workflow for compiling a developer's own freeform style notes into an AI-followed rule file.
 
 ## Requirements
 
@@ -210,6 +212,36 @@ Register documentation once
 - Sending documentation does not authorize runtime integration.
 - Feature code should use stable capability boundaries instead of direct provider calls.
 
+## AI dev-loop tooling (optional)
+
+An opt-in capability pack closes the write → build → restart → log-analysis
+loop for AI-assisted development against a real FXServer:
+
+- An FXServer-side HTTP bridge (whitelisted actions only — no arbitrary
+  command execution) for restarting a resource, running scripted in-game
+  test actions, and reading a resource's captured logs.
+- A context-aware MCP server (`npm run mcp`) exposing that loop as tools an
+  editor or agent can call directly — build/lint/restart, tail or long-poll
+  logs, list connected players, read a live `oxmysql` schema, and drive NUI
+  automation — with the tool set adjusted per resource (a pure-Lua resource
+  never sees the NUI/database tools).
+- `npm run mcp:init` checks what's already installed against a given
+  `resources/` + `server.cfg` and installs only what's missing.
+
+Never part of a production manifest; see
+[`examples/capabilities/mcp-dev-bridge/README.md`](examples/capabilities/mcp-dev-bridge/README.md)
+for activation, security notes, and the full API reference.
+
+## Keeping a cloned resource in sync with this template
+
+Resources are typically created once via **Use this template** and then
+diverge. `npm run sync:template` pulls later template-owned changes
+(`.ai/rules`, `.ai/skills`, `examples/`, `scripts/`, etc.) back in without
+touching the resource's own game code or its confirmed environment/
+requirements memory — see `--help` for the default path list, `--dry-run`,
+and `--list-only` (lets an AI agent decide what's safe to pull in instead of
+hand-picking `--paths`).
+
 ## Production releases
 
 Create a deployable resource folder with:
@@ -265,6 +297,7 @@ resource.json            machine-readable resource metadata
 - [`docs/ci-cd.md`](docs/ci-cd.md) — guarded origin CI and downstream examples
 - [`docs/releasing.md`](docs/releasing.md) — production release workflow
 - [`docs/credits.md`](docs/credits.md) — acknowledgements and development background
+- [`examples/capabilities/mcp-dev-bridge/README.md`](examples/capabilities/mcp-dev-bridge/README.md) — AI dev-loop bridge and MCP server
 
 ## Known limitations
 

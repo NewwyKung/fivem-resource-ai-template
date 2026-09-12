@@ -16,7 +16,7 @@ for the approved decisions.
 
 ## Files
 - Config: `.mcp-config.json.example` (copy to repo root as `.mcp-config.json`); `.cursor/mcp.json`; `package.json` (`mcp`/`mcp:watch` scripts, `@modelcontextprotocol/sdk`, `zod`, `tsx`).
-- Modules: `mcp_dev_bridge/fxmanifest.lua`, `mcp_dev_bridge/server/dev_bridge.lua`, `dev_bridge_logger.lua`, `scripts/lib/mcp-shared.ts`, `scripts/dev-watch.ts`.
+- Modules: `mcp_dev_bridge/fxmanifest.lua`, `mcp_dev_bridge/server/dev_bridge.lua`, `dev_bridge_logger.lua`, `scripts/lib/mcp-shared.ts`, `scripts/dev-watch.ts`, `scripts/mcp-init.mjs` (`npm run mcp:init` — check/install against a real `resources/` + `server.cfg`), `.ai/skills/init-mcp-bridge/SKILL.md` (the judgment layer: live-server safety gate, one-console-command-at-a-time handoff, real verification).
 - Tests: none automated (dev-only, environment-dependent); `npm run validate:fast` and `npm run check:secrets` cover the surrounding repo policy.
 - UI specification: none.
 

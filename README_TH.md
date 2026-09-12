@@ -18,6 +18,8 @@ Template สำหรับสร้าง FiveM Resource ที่ช่วย�
 - Optional i18n, database migration และ FXServer runtime tests
 - Wireframe-first UI workflow พร้อมขั้นแยกภาพ UI เป็นชิ้นส่วนและตรวจ Asset Manifest ก่อนประกอบใน Svelte
 - CI validation และ production release builder
+- (Optional) MCP dev bridge — ปิดลูป write → build → restart → อ่าน log อัตโนมัติกับ FXServer จริงผ่าน AI agent พร้อมคำสั่งติดตั้ง/เช็คสถานะให้เอง (`npm run mcp:init`)
+- คำสั่ง sync เทมเพลตกลับเข้า resource ที่ clone ไปแล้ว และ workflow แปลงสไตล์การเขียนโค้ดของเดฟ (freeform text) ให้เป็นไฟล์ rule ที่ AI ใช้จริง
 
 ## เริ่มต้นใช้งาน
 
@@ -79,6 +81,7 @@ AI จะใช้เมื่อ Requirements เลือกเท่านั
 - **i18n:** ใช้เมื่อรองรับหลายภาษา
 - **Database migrations:** ใช้เมื่อ Resource ใช้ Database และเป็นเจ้าของ Schema
 - **Runtime tests:** ใช้เมื่อต้องตรวจ FiveM natives, lifecycle, state bags, CEF หรือ providers บน FXServer จริง
+- **MCP dev bridge:** ใช้เมื่อต้องการให้ AI agent build/restart/อ่าน log/ทดสอบในเกมกับ FXServer จริงได้เอง อ่านเพิ่มที่ [examples/capabilities/mcp-dev-bridge/README.md](examples/capabilities/mcp-dev-bridge/README.md)
 
 Lua hot reload ไม่อยู่ใน Scope ให้ใช้ Vite HMR สำหรับ NUI และออกแบบ Lua ให้ restart-safe
 
