@@ -121,6 +121,10 @@ export function textResult(text: string) {
 
 export const FXSERVER_URL = (process.env.FXSERVER_URL || "http://127.0.0.1:30120").replace(/\/$/, "");
 export const FXSERVER_API_KEY = process.env.FXSERVER_API_KEY || "";
+// FXServer's SetHttpHandler is dispatched per-resource via a /<resourceName>/
+// URL prefix (confirmed against a real server — a bare /mcp/... path 404s
+// with FXServer's own generic router message, not the bridge's response).
+export const FXSERVER_BRIDGE_RESOURCE = process.env.FXSERVER_BRIDGE_RESOURCE || "mcp_dev_bridge";
 
 export class BridgeError extends Error {}
 
@@ -138,7 +142,7 @@ export async function callBridge(
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 8000);
 
   try {
-    const res = await fetch(`${FXSERVER_URL}${path}`, {
+    const res = await fetch(`${FXSERVER_URL}/${FXSERVER_BRIDGE_RESOURCE}${path}`, {
       method: options.method || "GET",
       headers: {
         Authorization: `Bearer ${FXSERVER_API_KEY}`,

@@ -69,6 +69,14 @@ so a resource is never silently instrumented.
    after it).
 3. In `server.cfg` (development server only):
    ```
+   # Only required if this server restricts console commands via ACE (many
+   # do, e.g. an existing "Restarter"-style setup). Confirmed against a real
+   # server: FXServer's restart command internally runs stop then start, so
+   # both need their own grant — command.restart alone is not enough.
+   add_ace resource.mcp_dev_bridge command.restart allow
+   add_ace resource.mcp_dev_bridge command.start allow
+   add_ace resource.mcp_dev_bridge command.stop allow
+
    ensure mcp_dev_bridge
    setr mcp_dev_mode true
    set mcp_token "<a long random string, not committed anywhere>"
@@ -77,6 +85,11 @@ so a resource is never silently instrumented.
    # endpoint, not something to expose past localhost by default.
    setr mcp_bridge_allow_remote false
    ```
+   If you paste these into a live console instead of restarting to pick up
+   `server.cfg`, send each `add_ace` line as its own separate command —
+   FXServer's console does not split multiple commands out of one line, and
+   sending two at once fails with an argument-count error that silently
+   voids both.
 4. Copy `.mcp-config.json.example` to the resource repo root as
    `.mcp-config.json` and adjust it (optional).
 5. From the resource repo root: `npm install` then `npm run mcp` to start
@@ -117,7 +130,18 @@ so a resource is never silently instrumented.
 
 ## API reference
 
-All endpoints require `Authorization: Bearer <mcp_token>`.
+All endpoints require `Authorization: Bearer <mcp_token>`, and — confirmed
+against a real FXServer — must be called through the resource-name prefix
+FXServer uses to route `SetHttpHandler`: `http://<host>:<port>/mcp_dev_bridge/mcp/...`,
+**not** a bare `/mcp/...` path (that 404s with FXServer's own generic router
+message, not the bridge's). `scripts/lib/mcp-shared.ts` adds this prefix
+automatically (override the resource name with the `FXSERVER_BRIDGE_RESOURCE`
+env var if you renamed the `mcp_dev_bridge` folder); a manual `curl` needs it
+written out, e.g.:
+```
+curl -H "Authorization: Bearer <mcp_token>" \
+  "http://127.0.0.1:30120/mcp_dev_bridge/mcp/resource/state?resource=my_resource"
+```
 
 - `POST /mcp/restart` — body `{ "resource": "my_resource" }`.
 - `POST /mcp/agent/action` — body `{ "action": "teleport" | "trigger_event" | "give_item" | "restart", ...params }`:

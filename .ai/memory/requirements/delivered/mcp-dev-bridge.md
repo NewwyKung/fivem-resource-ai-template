@@ -107,6 +107,45 @@ optional `.mcp-config.json` so concurrent per-resource chats stay scoped.
 - None blocking; `check:lua`/LuaLS verification of the two new Lua files is
   outstanding because no Lua toolchain was available in this environment.
 
+## Follow-up: real-server verification (2026-09-12)
+Deployed to a real, live production FXServer (user-owned, informed and
+explicit about the risk — no separate dev server was available) as
+`mcp_dev_bridge` + an isolated new `mcp_test_resource`, both under a
+`[servertest]`-style category folder, never touching any existing resource.
+`mcp_bridge_allow_remote` stayed `false` throughout. Two real bugs were
+found and fixed that no amount of code review could have caught:
+
+1. **URL routing.** FXServer dispatches a resource's `SetHttpHandler` via a
+   `/<resourceName>/<path>` prefix, not a bare path — a bare `/mcp/...`
+   request 404s with FXServer's own generic router message, not the
+   bridge's. Fixed in `scripts/lib/mcp-shared.ts`'s `callBridge`: every
+   request now goes through `/${FXSERVER_BRIDGE_RESOURCE}${path}`
+   (env var, defaults to `mcp_dev_bridge`). Confirmed via direct `curl` and
+   then through the full MCP tool-call path.
+2. **Restart requires ACE grants.** `ExecuteCommand('restart ' .. name)`
+   silently no-ops (`ok:true` from our own code, but FXServer logs
+   "Access denied for command stop"/"...start") unless the calling
+   resource's principal has `command.start` and `command.stop` — `restart`
+   decomposes into stop+start internally, so `command.restart` alone is not
+   sufficient. This server already had the identical pattern for its
+   `Zc_AutoEvenX` resource, confirming it's a general FXServer/ACE
+   behavior, not something specific to this setup. Documented as a
+   required `server.cfg` step (with the `add_ace` grants) in
+   `examples/capabilities/mcp-dev-bridge/README.md`.
+
+Also confirmed live and working end-to-end (real console log evidence, not
+just tool output): `get_current_context`, `get_resource_state`,
+`list_players`, `read_resource_logs`, `clear_resource_logs`,
+`watch_resource_logs`, and `auto_build_and_restart` (including the actual
+stop -> re-create-script-environment -> start cycle and the freshly
+captured post-restart log line). Not exercised: `run_in_game_test` /
+`teleport` / `give_item` (no test player was connected during the session),
+`inspect_db_schema` (oxmysql schema path), and `run_nui_automation`
+(no NUI resource in scope). No Lua syntax errors surfaced on this server —
+`dev_bridge.lua` and `dev_bridge_logger.lua` load and run cleanly, closing
+the "never run through a real Lua interpreter" gap noted in earlier
+delivery notes.
+
 ## Follow-up: list_players, Lua lint gate, watch mode, live oxmysql schema (2026-09-11)
 Added on user request ("ทำไว้ให้ครบเลย" after being offered these as optional
 follow-ups):
