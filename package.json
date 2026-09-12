@@ -9,6 +9,7 @@
   "scripts": {
     "init": "node scripts/init-template.mjs",
     "sync:template": "node scripts/sync-template.mjs",
+    "mcp:init": "node scripts/mcp-init.mjs",
     "setup:dev": "node scripts/setup-dev-resource.mjs",
     "validate": "node scripts/run-validation.mjs",
     "validate:fast": "node scripts/run-validation.mjs --fast",

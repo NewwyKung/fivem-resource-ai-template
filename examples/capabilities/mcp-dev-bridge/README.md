@@ -61,6 +61,12 @@ so a resource is never silently instrumented.
 
 ## Activation
 
+**Faster path:** ask an AI agent to run `.ai/skills/init-mcp-bridge/SKILL.md`
+("mcp init" / "set up MCP against my server") with your `resources/` and
+`server.cfg` paths — it checks what's already installed, installs only
+what's missing via `scripts/mcp-init.mjs`, and verifies the result against
+the real server. The manual steps below are what it automates.
+
 1. Copy `mcp_dev_bridge/` into your FXServer's resources folder (do **not**
    place it under `resource/`, which is packaged for release).
 2. Copy `dev_bridge_logger.lua` into the `server/` folder of each resource
